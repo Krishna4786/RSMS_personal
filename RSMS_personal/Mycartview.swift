@@ -22,6 +22,7 @@ struct MyCartView: View {
     @State private var promoCode: String = ""
     @State private var showSuccessAnimation = false
     @State private var navigateToTracking = false
+    @State private var showCheckoutOptions = false
     
     private var subtotal: Double {
         cartItems.reduce(0) { $0 + ($1.price * Double($1.quantity)) }
@@ -78,6 +79,27 @@ struct MyCartView: View {
         }
         .navigationDestination(isPresented: $navigateToTracking) {
             OrderTrackingView()
+        }
+        .sheet(isPresented: $showCheckoutOptions) {
+            CheckoutOptionsSheet(
+                onPickupSelected: {
+                    showCheckoutOptions = false
+                    // Handle pickup flow
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        showSuccessAnimation = true
+                    }
+                },
+                onDeliverySelected: {
+                    showCheckoutOptions = false
+                    // Handle delivery flow
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        showSuccessAnimation = true
+                    }
+                }
+            )
+            .presentationDetents([.medium])
+            .presentationDragIndicator(.visible)
+            .presentationCornerRadius(28)
         }
     }
     
@@ -235,7 +257,7 @@ struct MyCartView: View {
     private var checkoutButton: some View {
         VStack(spacing: 0) {
             Button(action: {
-                showSuccessAnimation = true
+                showCheckoutOptions = true
             }) {
                 Text("Proceed To Checkout")
                     .font(.system(size: 16, weight: .bold))
@@ -256,6 +278,132 @@ struct MyCartView: View {
                 .fill(.ultraThinMaterial)
                 .ignoresSafeArea(edges: .bottom)
         )
+    }
+}
+
+// MARK: - Checkout Options Sheet
+struct CheckoutOptionsSheet: View {
+    let onPickupSelected: () -> Void
+    let onDeliverySelected: () -> Void
+    
+    @State private var selectedOption: CheckoutOption = .pickup
+    
+    enum CheckoutOption {
+        case pickup, delivery
+    }
+    
+    var body: some View {
+        VStack(spacing: 0) {
+            Spacer().frame(height: 20)
+            
+            // Title
+            Text("Choose Any option How you want to get your Order")
+                .font(.system(size: 15))
+                .foregroundColor(Color(white: 0.45))
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 40)
+            
+            Spacer().frame(height: 32)
+            
+            // Options
+            HStack(spacing: 20) {
+                // Pickup option
+                Button(action: {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        selectedOption = .pickup
+                    }
+                }) {
+                    VStack(spacing: 12) {
+                        Text("Order Now Pickup\nAt Store")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(.white)
+                            .multilineTextAlignment(.center)
+                            .lineSpacing(2)
+                        
+                        Text("Collect your order directly from the selected store once it is ready.")
+                            .font(.system(size: 11))
+                            .foregroundColor(Color(white: 0.7))
+                            .multilineTextAlignment(.center)
+                            .lineSpacing(3)
+                            .padding(.horizontal, 8)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 180)
+                    .background(
+                        RoundedRectangle(cornerRadius: 28, style: .continuous)
+                            .fill(Color(red: 30/255, green: 42/255, blue: 53/255))
+                            .shadow(color: .black.opacity(0.12), radius: 12, x: 0, y: 6)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 28, style: .continuous)
+                            .strokeBorder(Color(red: 240/255, green: 168/255, blue: 50/255), lineWidth: selectedOption == .pickup ? 3 : 0)
+                    )
+                    .scaleEffect(selectedOption == .pickup ? 1.02 : 1.0)
+                }
+                .buttonStyle(.plain)
+                
+                // Delivery option
+                Button(action: {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        selectedOption = .delivery
+                    }
+                }) {
+                    VStack(spacing: 12) {
+                        Text("Online Delivery")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(.white)
+                            .multilineTextAlignment(.center)
+                            .lineSpacing(2)
+                        
+                        Text("Get your order delivered to your address within the estimated delivery time.")
+                            .font(.system(size: 11))
+                            .foregroundColor(Color(white: 0.7))
+                            .multilineTextAlignment(.center)
+                            .lineSpacing(3)
+                            .padding(.horizontal, 8)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 180)
+                    .background(
+                        RoundedRectangle(cornerRadius: 28, style: .continuous)
+                            .fill(Color(red: 30/255, green: 42/255, blue: 53/255))
+                            .shadow(color: .black.opacity(0.12), radius: 12, x: 0, y: 6)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 28, style: .continuous)
+                            .strokeBorder(Color(red: 240/255, green: 168/255, blue: 50/255), lineWidth: selectedOption == .delivery ? 3 : 0)
+                    )
+                    .scaleEffect(selectedOption == .delivery ? 1.02 : 1.0)
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal, 24)
+            
+            Spacer().frame(height: 32)
+            
+            // Confirm button
+            Button(action: {
+                if selectedOption == .pickup {
+                    onPickupSelected()
+                } else {
+                    onDeliverySelected()
+                }
+            }) {
+                Text("Confirm Selection")
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 52)
+                    .background(
+                        RoundedRectangle(cornerRadius: 26)
+                            .fill(Color.black)
+                    )
+            }
+            .padding(.horizontal, 24)
+            .padding(.bottom, 20)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color(red: 0.92, green: 0.92, blue: 0.92))
     }
 }
 

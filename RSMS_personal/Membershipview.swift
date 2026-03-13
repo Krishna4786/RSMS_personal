@@ -21,8 +21,8 @@ struct PlanOption: Identifiable {
     let name: String
     let price: String
     let per: String
+    let perMonth: String
     let savings: String?
-    let isPopular: Bool
 }
 
 // MARK: - Points Activity
@@ -64,7 +64,7 @@ struct MembershipView: View {
 
 struct MembershipIntroView: View {
     @Binding var isMember: Bool
-    @State private var selectedPlan = 1
+    @State private var showPricingSheet = false
     @State private var animateIn = false
     
     private let benefits: [MembershipBenefit] = [
@@ -73,11 +73,6 @@ struct MembershipIntroView: View {
         MembershipBenefit(icon: "star.circle.fill", title: "Points System", subtitle: "Earn & redeem points on every purchase"),
         MembershipBenefit(icon: "tag.fill", title: "Exclusive Deals", subtitle: "Members-only discounts & early access"),
         MembershipBenefit(icon: "arrow.counterclockwise", title: "Extended Returns", subtitle: "60-day hassle-free return window"),
-    ]
-    
-    private let plans: [PlanOption] = [
-        PlanOption(name: "Monthly", price: "₹199", per: "/month", savings: nil, isPopular: false),
-        PlanOption(name: "Yearly", price: "₹1,499", per: "/year", savings: "Save 37%", isPopular: true),
     ]
     
     var body: some View {
@@ -175,31 +170,12 @@ struct MembershipIntroView: View {
                     
                     Spacer().frame(height: 28)
                     
-                    // Plan selector
-                    Text("Choose your plan")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundColor(Color(white: 0.50))
-                        .tracking(1)
-                    
-                    Spacer().frame(height: 14)
-                    
-                    HStack(spacing: 12) {
-                        ForEach(Array(plans.enumerated()), id: \.element.id) { index, plan in
-                            planCard(plan: plan, isSelected: selectedPlan == index, index: index)
-                        }
-                    }
-                    .padding(.horizontal, 20)
-                    
-                    Spacer().frame(height: 28)
-                    
-                    // CTA Button
+                    // CTA Button — opens pricing sheet
                     Button {
-                        withAnimation(.easeInOut(duration: 0.3)) {
-                            isMember = true
-                        }
+                        showPricingSheet = true
                     } label: {
                         HStack(spacing: 8) {
-                            Text("Get Started")
+                            Text("View Plans")
                                 .font(.system(size: 17, weight: .bold))
                             Image(systemName: "arrow.right")
                                 .font(.system(size: 14, weight: .bold))
@@ -225,7 +201,7 @@ struct MembershipIntroView: View {
                     Button {
                         isMember = true
                     } label: {
-                        Text("Maybe later")
+                        Text("Skip for now")
                             .font(.system(size: 14))
                             .foregroundColor(Color(white: 0.45))
                     }
@@ -248,9 +224,15 @@ struct MembershipIntroView: View {
                 animateIn = true
             }
         }
+        .sheet(isPresented: $showPricingSheet) {
+            PricingSheetView(isMember: $isMember)
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
+                .presentationCornerRadius(28)
+        }
     }
     
-    // Benefit row
+    // Benefit row — same layout as your working version
     private func benefitRow(benefit: MembershipBenefit) -> some View {
         HStack(spacing: 14) {
             Image(systemName: benefit.icon)
@@ -280,56 +262,157 @@ struct MembershipIntroView: View {
         .padding(.horizontal, 16)
         .padding(.vertical, 14)
     }
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// MARK: - PRICING SHEET (Native iOS Sheet)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+struct PricingSheetView: View {
+    @Binding var isMember: Bool
+    @Environment(\.dismiss) private var dismiss
+    @State private var selectedPlan = 1 // Yearly pre-selected
     
-    // Plan card
-    private func planCard(plan: PlanOption, isSelected: Bool, index: Int) -> some View {
-        Button {
-            withAnimation(.easeInOut(duration: 0.2)) {
-                selectedPlan = index
+    private let plans: [PlanOption] = [
+        PlanOption(name: "Monthly", price: "₹199", per: "1 month", perMonth: "₹199/mo", savings: nil),
+        PlanOption(name: "Yearly", price: "₹1,499", per: "1 year", perMonth: "₹125/mo", savings: "Save 37%"),
+    ]
+    
+    var body: some View {
+        VStack(spacing: 0) {
+            Spacer().frame(height: 16)
+            
+            // Header
+            HStack(spacing: 10) {
+                ZStack {
+                    Circle()
+                        .fill(Color.memberGold)
+                        .frame(width: 40, height: 40)
+                    Image(systemName: "crown.fill")
+                        .font(.system(size: 16))
+                        .foregroundColor(.white)
+                }
+                
+                Text("Premium")
+                    .font(.system(size: 22, weight: .bold))
+                    .foregroundColor(.black)
             }
-        } label: {
-            VStack(spacing: 8) {
+            
+            Spacer().frame(height: 8)
+            
+            Text("Save more with the Yearly plan")
+                .font(.system(size: 15))
+                .foregroundColor(Color(white: 0.50))
+            
+            Spacer().frame(height: 28)
+            
+            // Plan cards
+            HStack(spacing: 14) {
+                ForEach(Array(plans.enumerated()), id: \.element.id) { index, plan in
+                    planCard(plan: plan, isSelected: selectedPlan == index) {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            selectedPlan = index
+                        }
+                    }
+                }
+            }
+            .padding(.horizontal, 24)
+            
+            Spacer().frame(height: 28)
+            
+            // Subscribe button
+            Button {
+                dismiss()
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    isMember = true
+                }
+            } label: {
+                Text("Subscribe Now")
+                    .font(.system(size: 17, weight: .bold))
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 56)
+                    .background(
+                        RoundedRectangle(cornerRadius: 28)
+                            .fill(Color.memberDark)
+                    )
+            }
+            .padding(.horizontal, 24)
+            
+            Spacer().frame(height: 16)
+            
+            // Terms
+            VStack(spacing: 6) {
+                Text("Recurring billing, cancel anytime. Save 37% with\nYearly plan compared to Monthly.")
+                    .font(.system(size: 12))
+                    .foregroundColor(Color(white: 0.55))
+                    .multilineTextAlignment(.center)
+                    .lineSpacing(2)
+                
+                Button(action: {}) {
+                    Text("Terms & Conditions & Privacy Policy Apply")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(.black)
+                        .underline()
+                }
+            }
+            
+            Spacer()
+        }
+        .padding(.top, 10)
+    }
+    
+    // Plan card — selected is WHITE, unselected is gold-tinted
+    private func planCard(plan: PlanOption, isSelected: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            VStack(spacing: 0) {
                 if let savings = plan.savings {
                     Text(savings)
                         .font(.system(size: 11, weight: .bold))
-                        .foregroundColor(.memberDark)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 4)
-                        .background(
-                            Capsule().fill(Color.memberGold)
-                        )
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 5)
+                        .background(Capsule().fill(Color.memberGold))
+                        .padding(.top, 14)
                 } else {
-                    Spacer().frame(height: 22)
+                    Spacer().frame(height: 38)
                 }
                 
-                Text(plan.name)
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundColor(isSelected ? .white : Color(white: 0.50))
-                
-                HStack(alignment: .firstTextBaseline, spacing: 1) {
-                    Text(plan.price)
-                        .font(.system(size: 24, weight: .bold))
-                        .foregroundColor(isSelected ? .white : Color(white: 0.65))
-                }
+                Spacer().frame(height: 14)
                 
                 Text(plan.per)
-                    .font(.system(size: 12))
-                    .foregroundColor(isSelected ? Color(white: 0.70) : Color(white: 0.40))
+                    .font(.system(size: 13))
+                    .foregroundColor(Color(white: 0.50))
+                
+                Spacer().frame(height: 6)
+                
+                Text(plan.price)
+                    .font(.system(size: 30, weight: .heavy, design: .rounded))
+                    .foregroundColor(.black)
+                
+                Spacer().frame(height: 8)
+                
+                Text(plan.perMonth)
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(isSelected ? Color(white: 0.40) : Color.memberGold)
+                
+                Spacer().frame(height: 18)
             }
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 18)
             .background(
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .fill(isSelected ? Color.white.opacity(0.10) : Color.white.opacity(0.03))
+                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    .fill(isSelected ? .white : Color.memberGold.opacity(0.08))
                     .overlay(
-                        RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        RoundedRectangle(cornerRadius: 20, style: .continuous)
                             .stroke(
-                                isSelected ? Color.memberGold.opacity(0.6) : Color.white.opacity(0.08),
-                                lineWidth: isSelected ? 1.5 : 1
+                                isSelected ? Color(white: 0.85) : Color.memberGold.opacity(0.5),
+                                lineWidth: isSelected ? 1 : 2
                             )
                     )
+                    .shadow(color: isSelected ? .black.opacity(0.08) : .clear, radius: 8, y: 3)
             )
         }
+        .buttonStyle(.plain)
     }
 }
 
@@ -359,16 +442,13 @@ struct MembershipDashboardView: View {
     var body: some View {
         ScrollView(.vertical, showsIndicators: false) {
             VStack(spacing: 0) {
-                // Membership card
                 membershipCard
                     .padding(.horizontal, 20)
                     .padding(.top, 12)
                 
-                // Tab selector
                 tabSelector
                     .padding(.top, 22)
                 
-                // Tab content
                 Group {
                     switch selectedTab {
                     case 0: overviewTab
@@ -393,10 +473,7 @@ struct MembershipDashboardView: View {
             RoundedRectangle(cornerRadius: 22, style: .continuous)
                 .fill(
                     LinearGradient(
-                        colors: [
-                            Color.memberDark,
-                            Color(red: 0.14, green: 0.13, blue: 0.16)
-                        ],
+                        colors: [Color.memberDark, Color(red: 0.14, green: 0.13, blue: 0.16)],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     )
@@ -404,16 +481,10 @@ struct MembershipDashboardView: View {
                 .frame(height: 190)
                 .shadow(color: .black.opacity(0.2), radius: 20, y: 8)
             
-            // Decorative rings
             Circle()
                 .stroke(Color.memberGold.opacity(0.08), lineWidth: 1)
                 .frame(width: 200, height: 200)
                 .offset(x: 100, y: -40)
-            
-            Circle()
-                .stroke(Color.memberGold.opacity(0.05), lineWidth: 1)
-                .frame(width: 140, height: 140)
-                .offset(x: 120, y: -20)
             
             VStack(alignment: .leading, spacing: 0) {
                 HStack {
@@ -426,39 +497,26 @@ struct MembershipDashboardView: View {
                             .tracking(2)
                             .foregroundColor(.memberGold)
                     }
-                    
                     Spacer()
-                    
                     Text("Active")
                         .font(.system(size: 11, weight: .semibold))
                         .foregroundColor(.memberGold)
                         .padding(.horizontal, 10)
                         .padding(.vertical, 4)
-                        .background(
-                            Capsule()
-                                .fill(Color.memberGold.opacity(0.15))
-                        )
+                        .background(Capsule().fill(Color.memberGold.opacity(0.15)))
                 }
-                
                 Spacer()
-                
                 Text("Krishna Aaggarwal")
                     .font(.system(size: 20, weight: .bold))
                     .foregroundColor(.white)
-                
                 Spacer().frame(height: 4)
-                
                 HStack {
                     HStack(spacing: 4) {
-                        Image(systemName: "star.fill")
-                            .font(.system(size: 11))
-                        Text("670 Points")
-                            .font(.system(size: 14, weight: .semibold))
+                        Image(systemName: "star.fill").font(.system(size: 11))
+                        Text("670 Points").font(.system(size: 14, weight: .semibold))
                     }
                     .foregroundColor(.memberGold)
-                    
                     Spacer()
-                    
                     Text("Valid till Dec 2026")
                         .font(.system(size: 12))
                         .foregroundColor(Color(white: 0.50))
@@ -473,9 +531,7 @@ struct MembershipDashboardView: View {
         HStack(spacing: 6) {
             ForEach(Array(tabs.enumerated()), id: \.offset) { index, tab in
                 Button {
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        selectedTab = index
-                    }
+                    withAnimation(.easeInOut(duration: 0.2)) { selectedTab = index }
                 } label: {
                     Text(tab)
                         .font(.system(size: 14, weight: selectedTab == index ? .bold : .medium))
@@ -496,7 +552,6 @@ struct MembershipDashboardView: View {
     // MARK: - Overview Tab
     private var overviewTab: some View {
         VStack(spacing: 14) {
-            // Quick stats
             HStack(spacing: 12) {
                 statCard(value: "670", label: "Points", icon: "star.fill", color: .memberGold)
                 statCard(value: "12", label: "Free Deliveries", icon: "shippingbox.fill", color: Color(red: 0.20, green: 0.72, blue: 0.45))
@@ -504,230 +559,113 @@ struct MembershipDashboardView: View {
             }
             .padding(.horizontal, 20)
             
-            // Benefits section
             VStack(alignment: .leading, spacing: 14) {
-                Text("Your Benefits")
-                    .font(.system(size: 17, weight: .bold))
-                    .padding(.horizontal, 20)
-                
+                Text("Your Benefits").font(.system(size: 17, weight: .bold)).padding(.horizontal, 20)
                 VStack(spacing: 0) {
-                    overviewBenefitRow(icon: "shippingbox.fill", title: "Free Delivery", detail: "Unlimited on all orders", color: Color(red: 0.20, green: 0.72, blue: 0.45))
-                    benefitDivider
-                    overviewBenefitRow(icon: "calendar.badge.clock", title: "Book Appointments", detail: "Personal styling & tailoring", color: Color(red: 0.20, green: 0.45, blue: 0.80))
-                    benefitDivider
-                    overviewBenefitRow(icon: "star.circle.fill", title: "Points Rewards", detail: "Earn 1 point per ₹10 spent", color: .memberGold)
-                    benefitDivider
-                    overviewBenefitRow(icon: "tag.fill", title: "Exclusive Deals", detail: "Up to 30% off member pricing", color: Color(red: 0.90, green: 0.35, blue: 0.35))
+                    dashBenefitRow(icon: "shippingbox.fill", title: "Free Delivery", detail: "Unlimited on all orders", color: Color(red: 0.20, green: 0.72, blue: 0.45))
+                    divider
+                    dashBenefitRow(icon: "calendar.badge.clock", title: "Book Appointments", detail: "Personal styling & tailoring", color: Color(red: 0.20, green: 0.45, blue: 0.80))
+                    divider
+                    dashBenefitRow(icon: "star.circle.fill", title: "Points Rewards", detail: "Earn 1 point per ₹10 spent", color: .memberGold)
+                    divider
+                    dashBenefitRow(icon: "tag.fill", title: "Exclusive Deals", detail: "Up to 30% off member pricing", color: Color(red: 0.90, green: 0.35, blue: 0.35))
                 }
                 .padding(.vertical, 6)
-                .background(
-                    RoundedRectangle(cornerRadius: 18, style: .continuous)
-                        .fill(.white)
-                        .shadow(color: .black.opacity(0.04), radius: 10, y: 3)
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 18, style: .continuous)
-                        .stroke(Color(white: 0.93), lineWidth: 1)
-                )
+                .background(RoundedRectangle(cornerRadius: 18).fill(.white).shadow(color: .black.opacity(0.04), radius: 10, y: 3))
+                .overlay(RoundedRectangle(cornerRadius: 18).stroke(Color(white: 0.93), lineWidth: 1))
                 .padding(.horizontal, 20)
             }
             
-            // Redeem banner
-            redeemBanner
-                .padding(.horizontal, 20)
-                .padding(.top, 4)
+            redeemBanner.padding(.horizontal, 20).padding(.top, 4)
         }
     }
     
     private func statCard(value: String, label: String, icon: String, color: Color) -> some View {
         VStack(spacing: 8) {
-            Image(systemName: icon)
-                .font(.system(size: 18))
-                .foregroundColor(color)
-            
-            Text(value)
-                .font(.system(size: 22, weight: .bold))
-                .foregroundColor(.black)
-            
-            Text(label)
-                .font(.system(size: 11))
-                .foregroundColor(Color(white: 0.50))
-                .multilineTextAlignment(.center)
+            Image(systemName: icon).font(.system(size: 18)).foregroundColor(color)
+            Text(value).font(.system(size: 22, weight: .bold)).foregroundColor(.black)
+            Text(label).font(.system(size: 11)).foregroundColor(Color(white: 0.50)).multilineTextAlignment(.center)
         }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 16)
-        .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(.white)
-                .shadow(color: .black.opacity(0.04), radius: 8, y: 3)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke(Color(white: 0.93), lineWidth: 1)
-        )
+        .frame(maxWidth: .infinity).padding(.vertical, 16)
+        .background(RoundedRectangle(cornerRadius: 16).fill(.white).shadow(color: .black.opacity(0.04), radius: 8, y: 3))
+        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color(white: 0.93), lineWidth: 1))
     }
     
-    private func overviewBenefitRow(icon: String, title: String, detail: String, color: Color) -> some View {
+    private func dashBenefitRow(icon: String, title: String, detail: String, color: Color) -> some View {
         HStack(spacing: 14) {
-            Image(systemName: icon)
-                .font(.system(size: 16, weight: .medium))
-                .foregroundColor(.white)
+            Image(systemName: icon).font(.system(size: 16, weight: .medium)).foregroundColor(.white)
                 .frame(width: 38, height: 38)
-                .background(
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .fill(color)
-                )
-            
+                .background(RoundedRectangle(cornerRadius: 10).fill(color))
             VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundColor(.black)
-                Text(detail)
-                    .font(.system(size: 12))
-                    .foregroundColor(Color(white: 0.50))
+                Text(title).font(.system(size: 15, weight: .semibold)).foregroundColor(.black)
+                Text(detail).font(.system(size: 12)).foregroundColor(Color(white: 0.50))
             }
-            
             Spacer()
-            
-            Image(systemName: "chevron.right")
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundColor(Color(white: 0.72))
+            Image(systemName: "chevron.right").font(.system(size: 12, weight: .semibold)).foregroundColor(Color(white: 0.72))
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 13)
+        .padding(.horizontal, 16).padding(.vertical, 13)
     }
     
-    private var benefitDivider: some View {
-        Rectangle()
-            .fill(Color.gray.opacity(0.10))
-            .frame(height: 1)
-            .padding(.leading, 68)
-            .padding(.trailing, 16)
+    private var divider: some View {
+        Rectangle().fill(Color.gray.opacity(0.10)).frame(height: 1).padding(.leading, 68).padding(.trailing, 16)
     }
     
     private var redeemBanner: some View {
         HStack(spacing: 14) {
             VStack(alignment: .leading, spacing: 4) {
-                Text("Redeem 100 Points")
-                    .font(.system(size: 16, weight: .bold))
-                    .foregroundColor(.memberDark)
-                Text("Get ₹200 off on your next order")
-                    .font(.system(size: 13))
-                    .foregroundColor(Color(white: 0.45))
+                Text("Redeem 100 Points").font(.system(size: 16, weight: .bold)).foregroundColor(.memberDark)
+                Text("Get ₹200 off on your next order").font(.system(size: 13)).foregroundColor(Color(white: 0.45))
             }
-            
             Spacer()
-            
             Button(action: {}) {
-                Text("Redeem")
-                    .font(.system(size: 13, weight: .bold))
-                    .foregroundColor(.memberDark)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 9)
-                    .background(
-                        Capsule().fill(Color.memberGold)
-                    )
+                Text("Redeem").font(.system(size: 13, weight: .bold)).foregroundColor(.memberDark)
+                    .padding(.horizontal, 16).padding(.vertical, 9)
+                    .background(Capsule().fill(Color.memberGold))
             }
         }
         .padding(18)
         .background(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(
-                    LinearGradient(
-                        colors: [Color.memberGold.opacity(0.12), Color.memberGold.opacity(0.05)],
-                        startPoint: .leading,
-                        endPoint: .trailing
-                    )
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 18, style: .continuous)
-                        .stroke(Color.memberGold.opacity(0.25), lineWidth: 1)
-                )
+            RoundedRectangle(cornerRadius: 18)
+                .fill(LinearGradient(colors: [Color.memberGold.opacity(0.12), Color.memberGold.opacity(0.05)], startPoint: .leading, endPoint: .trailing))
+                .overlay(RoundedRectangle(cornerRadius: 18).stroke(Color.memberGold.opacity(0.25), lineWidth: 1))
         )
     }
     
     // MARK: - Points Tab
     private var pointsTab: some View {
         VStack(spacing: 14) {
-            // Points balance card
             VStack(spacing: 6) {
-                Text("Available Points")
-                    .font(.system(size: 13))
-                    .foregroundColor(Color(white: 0.50))
-                Text("670")
-                    .font(.system(size: 44, weight: .heavy))
-                    .foregroundColor(.black)
-                Text("= ₹1,340 value")
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(.memberGold)
+                Text("Available Points").font(.system(size: 13)).foregroundColor(Color(white: 0.50))
+                Text("670").font(.system(size: 44, weight: .heavy)).foregroundColor(.black)
+                Text("= ₹1,340 value").font(.system(size: 14, weight: .medium)).foregroundColor(.memberGold)
             }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 24)
-            .background(
-                RoundedRectangle(cornerRadius: 20, style: .continuous)
-                    .fill(.white)
-                    .shadow(color: .black.opacity(0.04), radius: 10, y: 3)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 20, style: .continuous)
-                    .stroke(Color(white: 0.93), lineWidth: 1)
-            )
+            .frame(maxWidth: .infinity).padding(.vertical, 24)
+            .background(RoundedRectangle(cornerRadius: 20).fill(.white).shadow(color: .black.opacity(0.04), radius: 10, y: 3))
+            .overlay(RoundedRectangle(cornerRadius: 20).stroke(Color(white: 0.93), lineWidth: 1))
             .padding(.horizontal, 20)
             
-            // Activity
             VStack(alignment: .leading, spacing: 12) {
-                Text("Recent Activity")
-                    .font(.system(size: 17, weight: .bold))
-                    .padding(.horizontal, 20)
-                
+                Text("Recent Activity").font(.system(size: 17, weight: .bold)).padding(.horizontal, 20)
                 VStack(spacing: 0) {
                     ForEach(Array(pointsActivities.enumerated()), id: \.element.id) { index, activity in
                         HStack {
                             ZStack {
-                                Circle()
-                                    .fill(activity.isEarned ? Color(red: 0.20, green: 0.72, blue: 0.45).opacity(0.12) : Color.red.opacity(0.10))
-                                    .frame(width: 36, height: 36)
-                                Image(systemName: activity.isEarned ? "arrow.down.left" : "arrow.up.right")
-                                    .font(.system(size: 13, weight: .semibold))
-                                    .foregroundColor(activity.isEarned ? Color(red: 0.20, green: 0.72, blue: 0.45) : .red)
+                                Circle().fill(activity.isEarned ? Color(red: 0.20, green: 0.72, blue: 0.45).opacity(0.12) : Color.red.opacity(0.10)).frame(width: 36, height: 36)
+                                Image(systemName: activity.isEarned ? "arrow.down.left" : "arrow.up.right").font(.system(size: 13, weight: .semibold)).foregroundColor(activity.isEarned ? Color(red: 0.20, green: 0.72, blue: 0.45) : .red)
                             }
-                            
                             VStack(alignment: .leading, spacing: 2) {
-                                Text(activity.title)
-                                    .font(.system(size: 14, weight: .medium))
-                                    .foregroundColor(.black)
-                                Text(activity.date)
-                                    .font(.system(size: 12))
-                                    .foregroundColor(Color(white: 0.55))
+                                Text(activity.title).font(.system(size: 14, weight: .medium)).foregroundColor(.black)
+                                Text(activity.date).font(.system(size: 12)).foregroundColor(Color(white: 0.55))
                             }
-                            
                             Spacer()
-                            
-                            Text(activity.points)
-                                .font(.system(size: 16, weight: .bold))
-                                .foregroundColor(activity.isEarned ? Color(red: 0.20, green: 0.72, blue: 0.45) : .red)
+                            Text(activity.points).font(.system(size: 16, weight: .bold)).foregroundColor(activity.isEarned ? Color(red: 0.20, green: 0.72, blue: 0.45) : .red)
                         }
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 13)
-                        
-                        if index < pointsActivities.count - 1 {
-                            Rectangle()
-                                .fill(Color.gray.opacity(0.10))
-                                .frame(height: 1)
-                                .padding(.leading, 68)
-                                .padding(.trailing, 16)
-                        }
+                        .padding(.horizontal, 16).padding(.vertical, 13)
+                        if index < pointsActivities.count - 1 { divider }
                     }
                 }
-                .background(
-                    RoundedRectangle(cornerRadius: 18, style: .continuous)
-                        .fill(.white)
-                        .shadow(color: .black.opacity(0.04), radius: 10, y: 3)
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 18, style: .continuous)
-                        .stroke(Color(white: 0.93), lineWidth: 1)
-                )
+                .background(RoundedRectangle(cornerRadius: 18).fill(.white).shadow(color: .black.opacity(0.04), radius: 10, y: 3))
+                .overlay(RoundedRectangle(cornerRadius: 18).stroke(Color(white: 0.93), lineWidth: 1))
                 .padding(.horizontal, 20)
             }
         }
@@ -736,42 +674,25 @@ struct MembershipDashboardView: View {
     // MARK: - Appointments Tab
     private var appointmentsTab: some View {
         VStack(spacing: 14) {
-            // Upcoming appointments
             VStack(alignment: .leading, spacing: 12) {
-                Text("Upcoming")
-                    .font(.system(size: 17, weight: .bold))
-                    .padding(.horizontal, 20)
-                
+                Text("Upcoming").font(.system(size: 17, weight: .bold)).padding(.horizontal, 20)
                 ForEach(appointments) { apt in
                     appointmentCard(apt)
                 }
             }
             
-            // Book new
             Button(action: {}) {
                 HStack(spacing: 10) {
-                    Image(systemName: "plus.circle.fill")
-                        .font(.system(size: 20))
-                    Text("Book New Appointment")
-                        .font(.system(size: 15, weight: .semibold))
+                    Image(systemName: "plus.circle.fill").font(.system(size: 20))
+                    Text("Book New Appointment").font(.system(size: 15, weight: .semibold))
                 }
-                .foregroundColor(.white)
-                .frame(maxWidth: .infinity)
-                .frame(height: 52)
-                .background(
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .fill(Color.memberDark)
-                )
+                .foregroundColor(.white).frame(maxWidth: .infinity).frame(height: 52)
+                .background(RoundedRectangle(cornerRadius: 16).fill(Color.memberDark))
             }
-            .padding(.horizontal, 20)
-            .padding(.top, 6)
+            .padding(.horizontal, 20).padding(.top, 6)
             
-            // Available services
             VStack(alignment: .leading, spacing: 12) {
-                Text("Available Services")
-                    .font(.system(size: 17, weight: .bold))
-                    .padding(.horizontal, 20)
-                
+                Text("Available Services").font(.system(size: 17, weight: .bold)).padding(.horizontal, 20)
                 VStack(spacing: 0) {
                     serviceRow(icon: "scissors", title: "Personal Styling", time: "45 min", price: "Free")
                     serviceDivider
@@ -781,15 +702,8 @@ struct MembershipDashboardView: View {
                     serviceDivider
                     serviceRow(icon: "camera", title: "Style Photoshoot", time: "90 min", price: "₹999")
                 }
-                .background(
-                    RoundedRectangle(cornerRadius: 18, style: .continuous)
-                        .fill(.white)
-                        .shadow(color: .black.opacity(0.04), radius: 10, y: 3)
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 18, style: .continuous)
-                        .stroke(Color(white: 0.93), lineWidth: 1)
-                )
+                .background(RoundedRectangle(cornerRadius: 18).fill(.white).shadow(color: .black.opacity(0.04), radius: 10, y: 3))
+                .overlay(RoundedRectangle(cornerRadius: 18).stroke(Color(white: 0.93), lineWidth: 1))
                 .padding(.horizontal, 20)
             }
             .padding(.top, 6)
@@ -798,107 +712,51 @@ struct MembershipDashboardView: View {
     
     private func appointmentCard(_ apt: MemberAppointment) -> some View {
         HStack(spacing: 14) {
-            // Date block
             VStack(spacing: 2) {
-                Text(apt.date.components(separatedBy: " ").first ?? "15")
-                    .font(.system(size: 22, weight: .bold))
-                    .foregroundColor(.memberDark)
-                Text(apt.date.components(separatedBy: " ").dropFirst().first ?? "Mar")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(Color(white: 0.50))
+                Text(apt.date.components(separatedBy: " ").first ?? "15").font(.system(size: 22, weight: .bold)).foregroundColor(.memberDark)
+                Text(apt.date.components(separatedBy: " ").dropFirst().first ?? "Mar").font(.system(size: 12, weight: .medium)).foregroundColor(Color(white: 0.50))
             }
             .frame(width: 52, height: 56)
-            .background(
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .fill(Color.memberGold.opacity(0.12))
-            )
+            .background(RoundedRectangle(cornerRadius: 14).fill(Color.memberGold.opacity(0.12)))
             
             VStack(alignment: .leading, spacing: 4) {
-                Text(apt.type)
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundColor(.black)
-                HStack(spacing: 12) {
-                    HStack(spacing: 4) {
-                        Image(systemName: "clock")
-                            .font(.system(size: 11))
-                        Text(apt.time)
-                            .font(.system(size: 13))
-                    }
-                    .foregroundColor(Color(white: 0.50))
-                }
+                Text(apt.type).font(.system(size: 15, weight: .semibold)).foregroundColor(.black)
+                HStack(spacing: 4) {
+                    Image(systemName: "clock").font(.system(size: 11))
+                    Text(apt.time).font(.system(size: 13))
+                }.foregroundColor(Color(white: 0.50))
             }
-            
             Spacer()
-            
-            Text(apt.status)
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundColor(Color(red: 0.20, green: 0.72, blue: 0.45))
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
-                .background(
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(Color(red: 0.20, green: 0.72, blue: 0.45).opacity(0.10))
-                )
+            Text(apt.status).font(.system(size: 12, weight: .semibold)).foregroundColor(Color(red: 0.20, green: 0.72, blue: 0.45))
+                .padding(.horizontal, 12).padding(.vertical, 6)
+                .background(RoundedRectangle(cornerRadius: 8).fill(Color(red: 0.20, green: 0.72, blue: 0.45).opacity(0.10)))
         }
         .padding(14)
-        .background(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(.white)
-                .shadow(color: .black.opacity(0.04), radius: 10, y: 3)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .stroke(Color(white: 0.93), lineWidth: 1)
-        )
+        .background(RoundedRectangle(cornerRadius: 18).fill(.white).shadow(color: .black.opacity(0.04), radius: 10, y: 3))
+        .overlay(RoundedRectangle(cornerRadius: 18).stroke(Color(white: 0.93), lineWidth: 1))
         .padding(.horizontal, 20)
     }
     
     private func serviceRow(icon: String, title: String, time: String, price: String) -> some View {
         HStack(spacing: 14) {
-            Image(systemName: icon)
-                .font(.system(size: 16, weight: .medium))
-                .foregroundColor(.memberDark)
-                .frame(width: 36, height: 36)
-                .background(
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .fill(Color(red: 0.95, green: 0.95, blue: 0.96))
-                )
-            
+            Image(systemName: icon).font(.system(size: 16, weight: .medium)).foregroundColor(.memberDark)
+                .frame(width: 36, height: 36).background(RoundedRectangle(cornerRadius: 10).fill(Color(red: 0.95, green: 0.95, blue: 0.96)))
             VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(.black)
-                Text(time)
-                    .font(.system(size: 12))
-                    .foregroundColor(Color(white: 0.50))
+                Text(title).font(.system(size: 14, weight: .medium)).foregroundColor(.black)
+                Text(time).font(.system(size: 12)).foregroundColor(Color(white: 0.50))
             }
-            
             Spacer()
-            
-            Text(price)
-                .font(.system(size: 14, weight: .bold))
-                .foregroundColor(price == "Free" ? Color(red: 0.20, green: 0.72, blue: 0.45) : .black)
+            Text(price).font(.system(size: 14, weight: .bold)).foregroundColor(price == "Free" ? Color(red: 0.20, green: 0.72, blue: 0.45) : .black)
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 13)
+        .padding(.horizontal, 16).padding(.vertical, 13)
     }
     
     private var serviceDivider: some View {
-        Rectangle()
-            .fill(Color.gray.opacity(0.10))
-            .frame(height: 1)
-            .padding(.leading, 66)
-            .padding(.trailing, 16)
+        Rectangle().fill(Color.gray.opacity(0.10)).frame(height: 1).padding(.leading, 66).padding(.trailing, 16)
     }
 }
 
-// MARK: - Preview
-#Preview("Intro") {
-    MembershipView()
-}
-
-#Preview("Dashboard") {
-    NavigationStack {
-        MembershipDashboardView(isMember: .constant(true))
-    }
-}
+// MARK: - Previews
+#Preview("Intro") { MembershipView() }
+#Preview("Dashboard") { NavigationStack { MembershipDashboardView(isMember: .constant(true)) } }
+#Preview("Sheet") { PricingSheetView(isMember: .constant(false)) }
