@@ -19,21 +19,26 @@ struct ProductItem: Identifiable {
     let name: String
     let price: String
     let desc: String
+    /// Optional USDZ filename (without extension) bundled in the app
+    let usdzName: String?
 }
 
 // MARK: - Main View
 struct ProductDetailsView: View {
     @Environment(\.dismiss) private var dismiss
 
-    @State private var selectedColorIndex = 0
-    @State private var selectedSizeIndex = 1
+    @State private var selectedColorIndex  = 0
+    @State private var selectedSizeIndex   = 1
     @State private var currentProductIndex = 0
-    @State private var rotationAngle: Double = 0
-    @State private var isFavorite = false
+
+    // Flip state (chevron arrows → 180° flip each tap)
+    @State private var flipDegrees: Double = 0
+    @State private var isFlipping = false
+
+    // 360 / SceneKit orbit mode
     @State private var is360Mode = false
-    @State private var dragX: Double = 0
-    @State private var dragY: Double = 0
-    @State private var rotationX: Double = 0
+
+    @State private var isFavorite = false
 
     private let colors: [ProductColor] = [
         ProductColor(color: Color(red: 0.20, green: 0.45, blue: 0.80)),
@@ -50,16 +55,29 @@ struct ProductDetailsView: View {
         ProductSize(label: "XXL", isAvailable: false)
     ]
 
+    /// Add your USDZ filenames (without extension) to usdzName; nil falls back to SF Symbol.
     private let products: [ProductItem] = [
-        ProductItem(sfSymbol: "tshirt.fill",  name: "Classic T-Shirt",  price: "$29.99",  desc: "Experience the perfect blend of comfort and style. Crafted with premium materials, this piece is designed to seamlessly integrate into your everyday wardrobe..."),
-        ProductItem(sfSymbol: "shoe.fill",    name: "Running Shoes",    price: "$119.99", desc: "Engineered for speed, these shoes provide responsive cushioning and optimal breathability for all your training needs..."),
-        ProductItem(sfSymbol: "bag.fill",     name: "Travel Bag",       price: "$89.99",  desc: "A spacious and durable travel companion featuring organised compartments, ready for your next weekend getaway...")
+        ProductItem(sfSymbol: "tshirt.fill",
+                    name: "Classic T-Shirt",
+                    price: "$29.99",
+                    desc: "Experience the perfect blend of comfort and style. Crafted with premium materials, this piece is designed to seamlessly integrate into your everyday wardrobe...",
+                    usdzName: "t_shirt"),       // ← replace with your actual USDZ filename, or set nil
+        ProductItem(sfSymbol: "shoe.fill",
+                    name: "Running Shoes",
+                    price: "$119.99",
+                    desc: "Engineered for speed, these shoes provide responsive cushioning and optimal breathability for all your training needs...",
+                    usdzName: nil),
+        ProductItem(sfSymbol: "bag.fill",
+                    name: "Travel Bag",
+                    price: "$89.99",
+                    desc: "A spacious and durable travel companion featuring organised compartments, ready for your next weekend getaway...",
+                    usdzName: nil)
     ]
 
+    // MARK: - Body
     var body: some View {
         ZStack {
-            Color(uiColor: .systemGroupedBackground)
-                .ignoresSafeArea()
+            Color(uiColor: .systemGroupedBackground).ignoresSafeArea()
 
             ScrollView(.vertical, showsIndicators: false) {
                 VStack(spacing: 0) {
@@ -76,8 +94,7 @@ struct ProductDetailsView: View {
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
-                    let impact = UIImpactFeedbackGenerator(style: .medium)
-                    impact.impactOccurred()
+                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
                     withAnimation(.spring(response: 0.4, dampingFraction: 0.6)) {
                         isFavorite.toggle()
                     }
@@ -90,101 +107,85 @@ struct ProductDetailsView: View {
         }
     }
 
-    // MARK: - SceneKit Model Loading
-    private var sceneForProduct: SCNScene? {
-        guard let url = Bundle.main.url(forResource: "t_shirt", withExtension: "usdz") else {
+    // MARK: - SceneKit Scene Builder
+    private func buildScene(usdzName: String) -> SCNScene? {
+        guard let url = Bundle.main.url(forResource: usdzName, withExtension: "usdz") else {
             return nil
         }
-        do {
-            let scene = try SCNScene(url: url, options: nil)
-            scene.background.contents = UIColor.clear
+        guard let scene = try? SCNScene(url: url, options: nil) else { return nil }
 
-            let rootNode = scene.rootNode
+        scene.background.contents = UIColor.clear
+        let root = scene.rootNode
 
-            // Auto-fit: read real bounding box, centre & scale to fill view
-            let (minVec, maxVec) = rootNode.boundingBox
-            let centerX = (minVec.x + maxVec.x) / 2
-            let centerY = (minVec.y + maxVec.y) / 2
-            let centerZ = (minVec.z + maxVec.z) / 2
+        // Auto-fit
+        let (minV, maxV) = root.boundingBox
+        let center = SCNVector3((minV.x + maxV.x) / 2,
+                                (minV.y + maxV.y) / 2,
+                                (minV.z + maxV.z) / 2)
+        let maxDim = max(maxV.x - minV.x, maxV.y - minV.y, maxV.z - minV.z)
+        let scale  = maxDim > 0 ? Float(1.8 / maxDim) : 1.0
 
-            let sizeX = maxVec.x - minVec.x
-            let sizeY = maxVec.y - minVec.y
-            let sizeZ = maxVec.z - minVec.z
-            let maxDimension = max(sizeX, sizeY, sizeZ)
+        let container = SCNNode()
+        for child in root.childNodes { container.addChildNode(child) }
+        container.scale    = SCNVector3(scale, scale, scale)
+        container.position = SCNVector3(-center.x * scale, -center.y * scale, -center.z * scale)
+        root.addChildNode(container)
 
-            // Scale so longest axis = 1.8 units → camera at z:2 gives tight framing
-            let scale = maxDimension > 0 ? Float(1.8 / maxDimension) : 1.0
+        // Key light
+        let keyNode  = SCNNode(); let key = SCNLight()
+        key.type = .directional; key.intensity = 1800
+        key.castsShadow = true; key.shadowMode = .deferred
+        key.shadowColor = UIColor.black.withAlphaComponent(0.2)
+        keyNode.light = key
+        keyNode.eulerAngles = SCNVector3(-Float.pi / 4, Float.pi / 4, 0)
+        root.addChildNode(keyNode)
 
-            let containerNode = SCNNode()
-            for child in rootNode.childNodes {
-                containerNode.addChildNode(child)
-            }
-            containerNode.scale    = SCNVector3(scale, scale, scale)
-            containerNode.position = SCNVector3(
-                -centerX * scale,
-                -centerY * scale,
-                -centerZ * scale
-            )
-            rootNode.addChildNode(containerNode)
+        // Ambient fill
+        let ambNode  = SCNNode(); let amb = SCNLight()
+        amb.type = .ambient; amb.intensity = 600
+        ambNode.light = amb; root.addChildNode(ambNode)
 
-            // Directional key light
-            let lightNode = SCNNode()
-            let light = SCNLight()
-            light.type        = .directional
-            light.intensity   = 1800
-            light.castsShadow = true
-            light.shadowMode  = .deferred
-            light.shadowColor = UIColor.black.withAlphaComponent(0.2)
-            lightNode.light       = light
-            lightNode.eulerAngles = SCNVector3(-Float.pi / 4, Float.pi / 4, 0)
-            rootNode.addChildNode(lightNode)
+        // Camera
+        let camNode = SCNNode(); let cam = SCNCamera()
+        cam.fieldOfView = 60; camNode.camera = cam
+        camNode.position = SCNVector3(0, 0, 2.0)
+        root.addChildNode(camNode)
 
-            // Soft ambient fill
-            let ambientLightNode = SCNNode()
-            let ambientLight = SCNLight()
-            ambientLight.type      = .ambient
-            ambientLight.intensity = 600
-            ambientLightNode.light = ambientLight
-            rootNode.addChildNode(ambientLightNode)
-
-            // Camera close for large model framing
-            let cameraNode = SCNNode()
-            let camera = SCNCamera()
-            camera.fieldOfView  = 60           // wider FOV fills frame
-            cameraNode.camera   = camera
-            cameraNode.position = SCNVector3(0, 0, 2.0)
-            rootNode.addChildNode(cameraNode)
-
-            return scene
-        } catch {
-            print("SCNScene load error: \(error)")
-            return nil
-        }
+        return scene
     }
 
     // MARK: - Product Interactive Area
     private var productInteractiveArea: some View {
-        // Outer ZStack lets the 3D button float over the stage without adding height
-        ZStack(alignment: .bottomTrailing) {
+        let product = products[currentProductIndex]
+        let scene   = product.usdzName.flatMap { buildScene(usdzName: $0) }
 
+        return ZStack(alignment: .bottomTrailing) {
             VStack(spacing: 0) {
-                // Model Stage — fills full width, fixed height
+
+                // ── Model Stage ──────────────────────────────────────────
                 ZStack {
-                    // Subtle colour glow only
+                    // Colour glow
                     Circle()
                         .fill(colors[selectedColorIndex].color.opacity(0.10))
                         .frame(width: 260, height: 260)
                         .blur(radius: 40)
 
-                    if let scene = sceneForProduct {
-                        ProductSceneView(scene: scene, allowsCameraControl: is360Mode)
+                    if let scene = scene {
+                        // ── 3-D SceneKit model (with card flip applied) ──
+                        ProductSceneView(scene: scene,
+                                         allowsCameraControl: is360Mode)
                             .frame(maxWidth: .infinity)
                             .frame(height: 300)
                             .background(Color.clear)
                             .id(currentProductIndex)
                             .transition(.scale.combined(with: .opacity))
+                            // Apply the running flip angle so 3D model flips too
+                            .rotation3DEffect(.degrees(flipDegrees),
+                                              axis: (x: 0, y: 1, z: 0),
+                                              perspective: 0.4)
                     } else {
-                        Image(systemName: products[currentProductIndex].sfSymbol)
+                        // ── SF Symbol fallback with flip ─────────────────
+                        Image(systemName: product.sfSymbol)
                             .font(.system(size: 160, weight: .thin))
                             .foregroundStyle(
                                 LinearGradient(
@@ -200,29 +201,30 @@ struct ProductDetailsView: View {
                                     radius: 10, y: 10)
                             .frame(maxWidth: .infinity)
                             .frame(height: 300)
+                            .rotation3DEffect(.degrees(flipDegrees),
+                                              axis: (x: 0, y: 1, z: 0),
+                                              perspective: 0.4)
+                            .id(currentProductIndex)
                     }
                 }
 
-                // Thin ground shadow directly under model
+                // Ground shadow
                 Ellipse()
                     .fill(
-                        RadialGradient(
-                            colors: [Color.black.opacity(0.07), .clear],
-                            center: .center,
-                            startRadius: 0,
-                            endRadius: 70
-                        )
+                        RadialGradient(colors: [Color.black.opacity(0.07), .clear],
+                                       center: .center, startRadius: 0, endRadius: 70)
                     )
                     .frame(width: 140, height: 10)
                     .padding(.top, 2)
 
-                // Rotate controls / orbit hint
+                // ── Controls row ─────────────────────────────────────────
                 ZStack {
                     if !is360Mode {
+                        // Left / Right arrows → each tap flips 180°
                         HStack(spacing: 0) {
                             Button(action: {
                                 UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                                rotateLeft()
+                                flipProduct(direction: -1)
                             }) {
                                 Image(systemName: "chevron.left")
                                     .font(.system(size: 14, weight: .bold))
@@ -234,7 +236,7 @@ struct ProductDetailsView: View {
                                 .frame(width: 1, height: 14)
                             Button(action: {
                                 UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                                rotateRight()
+                                flipProduct(direction: 1)
                             }) {
                                 Image(systemName: "chevron.right")
                                     .font(.system(size: 14, weight: .bold))
@@ -261,14 +263,12 @@ struct ProductDetailsView: View {
                 .padding(.top, 10)
             }
 
-            // 3D/360° button — floats inside the model area, no extra height added
+            // ── 3D / 360° toggle button (floating) ──────────────────────
             Button {
                 UIImpactFeedbackGenerator(style: .medium).impactOccurred()
                 withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
                     is360Mode.toggle()
-                    if !is360Mode {
-                        rotationAngle = 0; rotationX = 0; dragX = 0; dragY = 0
-                    }
+                    if !is360Mode { flipDegrees = 0 }
                 }
             } label: {
                 VStack(spacing: 3) {
@@ -287,7 +287,6 @@ struct ProductDetailsView: View {
                 )
                 .shadow(color: .black.opacity(0.08), radius: 8, y: 4)
             }
-            // Sits at the bottom-right inside the model, above the shadow/controls
             .padding(.trailing, 16)
             .padding(.bottom, 52)
         }
@@ -302,7 +301,7 @@ struct ProductDetailsView: View {
                     UISelectionFeedbackGenerator().selectionChanged()
                     withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
                         currentProductIndex = index
-                        if !is360Mode { rotationAngle = 0 }
+                        flipDegrees = 0          // reset flip when switching product
                     }
                 } label: {
                     Image(systemName: product.sfSymbol)
@@ -336,10 +335,9 @@ struct ProductDetailsView: View {
 
     // MARK: - Product Info Card
     private var productInfoCard: some View {
-        VStack(alignment: .leading, spacing: 0) {
+        let product = products[currentProductIndex]
 
-            let product = products[currentProductIndex]
-
+        return VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .top) {
                 Text(product.name)
                     .font(.system(size: 24, weight: .bold, design: .rounded))
@@ -437,11 +435,14 @@ struct ProductDetailsView: View {
                         }
                     } label: {
                         Text(size.label)
-                            .font(.system(size: 15, weight: selectedSizeIndex == index ? .bold : .medium))
+                            .font(.system(size: 15,
+                                          weight: selectedSizeIndex == index ? .bold : .medium))
                             .foregroundColor(
                                 !size.isAvailable
                                 ? .secondary.opacity(0.3)
-                                : selectedSizeIndex == index ? Color(uiColor: .systemBackground) : .primary
+                                : selectedSizeIndex == index
+                                    ? Color(uiColor: .systemBackground)
+                                    : .primary
                             )
                             .frame(width: 44, height: 44)
                             .background(Circle().fill(
@@ -452,7 +453,9 @@ struct ProductDetailsView: View {
                             .overlay(Circle().stroke(
                                 !size.isAvailable
                                 ? Color.gray.opacity(0.1)
-                                : selectedSizeIndex == index ? .clear : Color(uiColor: .separator),
+                                : selectedSizeIndex == index
+                                    ? .clear
+                                    : Color(uiColor: .separator),
                                 lineWidth: 1
                             ))
                             .scaleEffect(selectedSizeIndex == index ? 1.05 : 1.0)
@@ -463,40 +466,37 @@ struct ProductDetailsView: View {
         }
     }
 
-    // MARK: - Rotation helpers
-    private func rotateLeft() {
-        withAnimation(.spring(response: 0.8, dampingFraction: 0.9)) { rotationAngle -= 360 }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-            currentProductIndex = (currentProductIndex - 1 + products.count) % products.count
+    // MARK: - Flip Logic
+    /// Flips the model 180° in the given direction (+1 = right, -1 = left).
+    /// Successive taps keep accumulating so the model can spin freely.
+    private func flipProduct(direction: Double) {
+        guard !isFlipping else { return }
+        isFlipping = true
+        withAnimation(.easeInOut(duration: 0.5)) {
+            flipDegrees += direction * 180
         }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.9) { rotationAngle = 0 }
-    }
-
-    private func rotateRight() {
-        withAnimation(.spring(response: 0.8, dampingFraction: 0.9)) { rotationAngle += 360 }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-            currentProductIndex = (currentProductIndex + 1) % products.count
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.55) {
+            isFlipping = false
         }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.9) { rotationAngle = 0 }
     }
 }
 
-// MARK: - SceneKit UIViewRepresentable wrapper
+// MARK: - SceneKit UIViewRepresentable
 struct ProductSceneView: UIViewRepresentable {
     let scene: SCNScene
     let allowsCameraControl: Bool
 
     func makeUIView(context: Context) -> SCNView {
-        let scnView = SCNView()
-        scnView.scene                      = scene
-        scnView.allowsCameraControl        = allowsCameraControl
-        scnView.autoenablesDefaultLighting = false
-        scnView.antialiasingMode           = .multisampling4X
-        scnView.backgroundColor            = .clear
-        scnView.isOpaque                   = false
-        scnView.layer.isOpaque             = false
-        scnView.layer.backgroundColor      = UIColor.clear.cgColor
-        return scnView
+        let v = SCNView()
+        v.scene                      = scene
+        v.allowsCameraControl        = allowsCameraControl
+        v.autoenablesDefaultLighting = false
+        v.antialiasingMode           = .multisampling4X
+        v.backgroundColor            = .clear
+        v.isOpaque                   = false
+        v.layer.isOpaque             = false
+        v.layer.backgroundColor      = UIColor.clear.cgColor
+        return v
     }
 
     func updateUIView(_ uiView: SCNView, context: Context) {
