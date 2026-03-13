@@ -20,7 +20,9 @@ struct MainTabView: View {
             }
             
             Tab("Profile", systemImage: "person", value: 4) {
-                Text("Profile")
+                NavigationStack {
+                    ProfileView()
+                }
             }
         }
         .tint(Color.storePrimary)
