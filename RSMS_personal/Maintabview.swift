@@ -13,7 +13,7 @@ struct MainTabView: View {
                 WishlistView()
             }
             Tab("Membership", systemImage: "crown", value: 3) {
-                Text("Membership")
+                MembershipView()
             }
             Tab("Orders", systemImage: "bag", value: 2) {
                 MyOrdersView()
