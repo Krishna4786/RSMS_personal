@@ -1,0 +1,267 @@
+import SwiftUI
+
+// MARK: - Cart Item Model
+struct CartItem: Identifiable {
+    let id = UUID()
+    let name: String
+    let size: String
+    let price: Double
+    let imageName: String
+    var quantity: Int
+}
+
+// MARK: - My Cart View
+struct MyCartView: View {
+    @Environment(\.dismiss) private var dismiss
+    
+    @State private var cartItems: [CartItem] = [
+        CartItem(name: "Men's Fit Black Hoodie", size: "L", price: 160, imageName: "hoodie1", quantity: 1),
+        CartItem(name: "Men's Fit Black Hoodie", size: "L", price: 160, imageName: "hoodie2", quantity: 1),
+        CartItem(name: "Men's Fit Black Hoodie", size: "L", price: 160, imageName: "hoodie3", quantity: 1)
+    ]
+    @State private var promoCode: String = ""
+    @State private var showSuccessAnimation = false
+    @State private var navigateToTracking = false
+    
+    private var subtotal: Double {
+        cartItems.reduce(0) { $0 + ($1.price * Double($1.quantity)) }
+    }
+    
+    private let shipping: Double = 45.99
+    
+    private var bagTotal: Double {
+        subtotal + shipping
+    }
+    
+    var body: some View {
+        ZStack(alignment: .bottom) {
+            ScrollView(.vertical, showsIndicators: false) {
+                VStack(spacing: 0) {
+                    // Cart items
+                    VStack(spacing: 12) {
+                        ForEach(Array(cartItems.enumerated()), id: \.element.id) { index, item in
+                            cartItemRow(item: item, index: index)
+                        }
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.top, 20)
+                    
+                    // Promo code
+                    promoCodeSection
+                        .padding(.horizontal, 20)
+                        .padding(.top, 28)
+                    
+                    // Order summary
+                    orderSummary
+                        .padding(.horizontal, 20)
+                        .padding(.top, 28)
+                    
+                    // Space for bottom button
+                    Spacer().frame(height: 120)
+                }
+            }
+            .background(Color(red: 0.97, green: 0.97, blue: 0.97))
+            
+            // Pinned checkout button
+            checkoutButton
+        }
+        .navigationTitle("My Cart")
+        .navigationBarTitleDisplayMode(.inline)
+        .sheet(isPresented: $showSuccessAnimation, onDismiss: {
+            // Navigate to order tracking after sheet dismisses
+            navigateToTracking = true
+        }) {
+            SuccessAnimationView(
+                title: "Order Placed!",
+                message: "Your order has been placed successfully and is being processed."
+            )
+        }
+        .navigationDestination(isPresented: $navigateToTracking) {
+            OrderTrackingView()
+        }
+    }
+    
+    // MARK: - Cart Item Row
+    private func cartItemRow(item: CartItem, index: Int) -> some View {
+        HStack(spacing: 14) {
+            // Product image placeholder
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(Color(red: 0.92, green: 0.92, blue: 0.93))
+                .frame(width: 80, height: 80)
+                .overlay(
+                    Image(systemName: "tshirt.fill")
+                        .font(.system(size: 28, weight: .light))
+                        .foregroundColor(.gray.opacity(0.4))
+                )
+            
+            // Info
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(alignment: .top) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(item.name)
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundColor(.black)
+                        
+                        Text("Size - \(item.size)")
+                            .font(.system(size: 12))
+                            .foregroundColor(.gray)
+                    }
+                    
+                    Spacer()
+                    
+                    // Delete button
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.25)) {
+                            let _ = cartItems.remove(at: index)
+                        }
+                    } label: {
+                        Image(systemName: "trash")
+                            .font(.system(size: 15))
+                            .foregroundColor(Color(red: 0.95, green: 0.55, blue: 0.10))
+                    }
+                }
+                
+                Spacer().frame(height: 6)
+                
+                HStack {
+                    Text("Rs. \(Int(item.price))")
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundColor(.black)
+                    
+                    Spacer()
+                    
+                    // Quantity controls
+                    HStack(spacing: 12) {
+                        Button {
+                            if cartItems[index].quantity > 1 {
+                                cartItems[index].quantity -= 1
+                            }
+                        } label: {
+                            Text("–")
+                                .font(.system(size: 16, weight: .medium))
+                                .foregroundColor(.black)
+                        }
+                        
+                        Text("\(cartItems[index].quantity)")
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundColor(.black)
+                            .frame(minWidth: 14)
+                        
+                        Button {
+                            cartItems[index].quantity += 1
+                        } label: {
+                            Text("+")
+                                .font(.system(size: 16, weight: .medium))
+                                .foregroundColor(.black)
+                        }
+                    }
+                }
+            }
+        }
+        .padding(14)
+        .background(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(.white)
+                .shadow(color: .black.opacity(0.03), radius: 6, y: 2)
+        )
+    }
+    
+    // MARK: - Promo Code
+    private var promoCodeSection: some View {
+        HStack(spacing: 0) {
+            TextField("Promo Code", text: $promoCode)
+                .font(.system(size: 15))
+                .padding(.horizontal, 18)
+                .padding(.vertical, 16)
+            
+            Button(action: {}) {
+                Text("Apply")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 22)
+                    .padding(.vertical, 12)
+                    .background(
+                        RoundedRectangle(cornerRadius: 10)
+                            .fill(Color.black)
+                    )
+            }
+            .padding(.trailing, 6)
+        }
+        .background(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(.white)
+                .shadow(color: .black.opacity(0.03), radius: 6, y: 2)
+        )
+    }
+    
+    // MARK: - Order Summary
+    private var orderSummary: some View {
+        VStack(spacing: 0) {
+            summaryRow(label: "Subtotal", value: "Rs. \(String(format: "%.2f", subtotal))", suffix: "INR")
+            
+            Divider()
+                .padding(.vertical, 14)
+            
+            summaryRow(label: "Shipping", value: "Rs. \(String(format: "%.2f", shipping))", suffix: "INR")
+            
+            Divider()
+                .padding(.vertical, 14)
+            
+            summaryRow(label: "Bag Total", value: "Rs. \(String(format: "%.2f", bagTotal))", suffix: "INR", isBold: true)
+        }
+    }
+    
+    private func summaryRow(label: String, value: String, suffix: String, isBold: Bool = false) -> some View {
+        HStack {
+            Text(label)
+                .font(.system(size: 15, weight: isBold ? .bold : .semibold))
+                .foregroundColor(.black)
+            
+            Spacer()
+            
+            HStack(spacing: 4) {
+                Text(value)
+                    .font(.system(size: 15, weight: isBold ? .bold : .medium))
+                    .foregroundColor(.black)
+                
+                Text(suffix)
+                    .font(.system(size: 12))
+                    .foregroundColor(.gray.opacity(0.5))
+            }
+        }
+    }
+    
+    // MARK: - Checkout Button
+    private var checkoutButton: some View {
+        VStack(spacing: 0) {
+            Button(action: {
+                showSuccessAnimation = true
+            }) {
+                Text("Proceed To Checkout")
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 56)
+                    .background(
+                        RoundedRectangle(cornerRadius: 28)
+                            .fill(Color.black)
+                    )
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 14)
+            .padding(.bottom, 5)
+        }
+        .background(
+            Rectangle()
+                .fill(.ultraThinMaterial)
+                .ignoresSafeArea(edges: .bottom)
+        )
+    }
+}
+
+// MARK: - Preview
+#Preview {
+    NavigationStack {
+        MyCartView()
+    }
+}
