@@ -39,6 +39,7 @@ struct StoreMHomeView: View {
     @State private var previewProduct: Product? = nil
     @State private var showPreview = false
     @State private var navigateToDetail = false
+    @State private var showNotifications = false
     @State private var products: [Product] = [
         Product(name: "Classic T-Shirt", price: "$29.99", imageName: "tshirt", description: "A timeless wardrobe essential. Soft cotton fabric with a relaxed fit for all-day comfort."),
         Product(name: "Denim Jacket", price: "$89.99", imageName: "jacket", description: "Rugged yet refined. Premium denim with a modern cut that pairs with everything."),
@@ -77,9 +78,12 @@ struct StoreMHomeView: View {
                 .navigationDestination(isPresented: $navigateToDetail) {
                     ProductDetailsView()
                 }
+                .navigationDestination(isPresented: $showNotifications) {
+                    NotificationsView()
+                }
                 .toolbar {
                     ToolbarItem(placement: .topBarTrailing) {
-                        Button(action: {}) {
+                        Button(action: { showNotifications = true }) {
                             Image(systemName: "bell")
                         }
                     }
