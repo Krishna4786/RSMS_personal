@@ -23,6 +23,7 @@ struct MyCartView: View {
     @State private var showSuccessAnimation = false
     @State private var navigateToTracking = false
     @State private var showCheckoutOptions = false
+    @State private var navigateToStoreLocator = false
     
     private var subtotal: Double {
         cartItems.reduce(0) { $0 + ($1.price * Double($1.quantity)) }
@@ -80,13 +81,16 @@ struct MyCartView: View {
         .navigationDestination(isPresented: $navigateToTracking) {
             OrderTrackingView()
         }
+        .navigationDestination(isPresented: $navigateToStoreLocator) {
+            StoreLocatorView()
+        }
         .sheet(isPresented: $showCheckoutOptions) {
             CheckoutOptionsSheet(
                 onPickupSelected: {
                     showCheckoutOptions = false
-                    // Handle pickup flow
+                    // Navigate to store locator for pickup
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                        showSuccessAnimation = true
+                        navigateToStoreLocator = true
                     }
                 },
                 onDeliverySelected: {
