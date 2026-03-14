@@ -24,6 +24,11 @@ struct StoreLocatorView: View {
     @State private var sortOption: StoreSortOption = .nearest
     @State private var selectedStore: StoreLocation? = nil
     @State private var showStoreDetail = false
+    @State private var navigateToCheckout = false
+    @Environment(\.dismiss) private var dismiss
+    
+    // Optional callback for when selecting a store from checkout
+    var onStoreSelected: ((StoreLocation) -> Void)? = nil
     
     private let stores: [StoreLocation] = [
         StoreLocation(name: "Indiranagar Flagship", address: "100 Feet Road, Indiranagar, Bengaluru 560038", distance: "0.8 km", tags: ["Pickup Available"], hours: "10:00 AM – 9:00 PM", phone: "+91 80 4567 1234", rating: 4.8),
@@ -104,10 +109,29 @@ struct StoreLocatorView: View {
         .toolbarVisibility(.hidden, for: .tabBar)
         .sheet(isPresented: $showStoreDetail) {
             if let store = selectedStore {
-                StoreDetailSheet(store: store)
+                StoreDetailSheet(
+                    store: store,
+                    onStoreSelected: { selectedStore in
+                        if let callback = onStoreSelected {
+                            // Called from checkout - use callback
+                            callback(selectedStore)
+                            dismiss()
+                        } else {
+                            // Standalone navigation - go to checkout
+                            self.selectedStore = selectedStore
+                            navigateToCheckout = true
+                            showStoreDetail = false
+                        }
+                    }
+                )
                     .presentationDetents([.medium])
                     .presentationDragIndicator(.visible)
                     .presentationCornerRadius(24)
+            }
+        }
+        .navigationDestination(isPresented: $navigateToCheckout) {
+            if let store = selectedStore {
+                CheckoutView(storeName: store.name, storeAddress: store.address)
             }
         }
     }
@@ -335,6 +359,7 @@ struct StoreLocatorView: View {
 // MARK: - Store Detail Sheet
 struct StoreDetailSheet: View {
     let store: StoreLocation
+    let onStoreSelected: (StoreLocation) -> Void
     @Environment(\.dismiss) private var dismiss
     
     var body: some View {
@@ -397,7 +422,10 @@ struct StoreDetailSheet: View {
                     )
                 }
                 
-                Button(action: {}) {
+                Button {
+                    onStoreSelected(store)
+                    dismiss()
+                } label: {
                     HStack(spacing: 6) {
                         Image(systemName: "checkmark")
                             .font(.system(size: 14, weight: .bold))
