@@ -100,24 +100,21 @@ struct ProductDetailsView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                HStack(spacing: 16) {
-                    // Cart icon with badge
+                NavigationLink(destination: MyCartView()) {
                     Image(systemName: "cart")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(.primary)
+                        .foregroundColor(.storePrimary)
                         .cartBadge()
-                    
-                    // Favorite button
-                    Button {
-                        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                        withAnimation(.spring(response: 0.4, dampingFraction: 0.6)) {
-                            isFavorite.toggle()
-                        }
-                    } label: {
-                        Image(systemName: isFavorite ? "heart.fill" : "heart")
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundColor(isFavorite ? .red : .primary)
+                }
+            }
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                    withAnimation(.spring(response: 0.4, dampingFraction: 0.6)) {
+                        isFavorite.toggle()
                     }
+                } label: {
+                    Image(systemName: isFavorite ? "heart.fill" : "heart")
+                        .foregroundColor(isFavorite ? .red : .storePrimary)
                 }
             }
         }

@@ -85,11 +85,14 @@ struct StoreMHomeView: View {
                     ToolbarItem(placement: .topBarTrailing) {
                         Button(action: { showNotifications = true }) {
                             Image(systemName: "bell")
+                                .foregroundColor(.storePrimary)
                         }
                     }
                     ToolbarItem(placement: .topBarTrailing) {
                         NavigationLink(destination: MyCartView()) {
                             Image(systemName: "cart")
+                                .foregroundColor(.storePrimary)
+                                .cartBadge()
                         }
                     }
                 }
