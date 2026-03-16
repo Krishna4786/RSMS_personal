@@ -134,6 +134,11 @@ struct StoreLocatorView: View {
                 CheckoutView(storeName: store.name, storeAddress: store.address)
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: .popToRootHome)) { _ in
+            // Reset navigation state when pop to root is triggered
+            navigateToCheckout = false
+            showStoreDetail = false
+        }
     }
     
     // MARK: - Search Bar
@@ -259,10 +264,10 @@ struct StoreLocatorView: View {
                         Image(systemName: "arrow.right")
                             .font(.system(size: 10, weight: .bold))
                     }
-                    .foregroundColor(.white)
+                    .foregroundColor(.black)
                     .padding(.horizontal, 16)
                     .padding(.vertical, 8)
-                    .background(Capsule().fill(.black))
+                    .background(Capsule().fill(Color.storePrimary))
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 12)

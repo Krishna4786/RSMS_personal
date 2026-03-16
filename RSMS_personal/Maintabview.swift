@@ -2,11 +2,20 @@ import SwiftUI
 
 struct MainTabView: View {
     @State private var selectedTab = 0
+    @State private var homePath = NavigationPath()
     
     var body: some View {
         TabView(selection: $selectedTab) {
             Tab("Home", systemImage: "house", value: 0) {
-                StoreMHomeView()
+                NavigationStack(path: $homePath) {
+                    StoreMHomeView()
+                }
+                .environment(\.popToRoot) {
+                    homePath = NavigationPath()
+                }
+                .onReceive(NotificationCenter.default.publisher(for: .popToRootHome)) { _ in
+                    homePath = NavigationPath()
+                }
             }
             
             Tab("Wishlist", systemImage: "heart", value: 1) {

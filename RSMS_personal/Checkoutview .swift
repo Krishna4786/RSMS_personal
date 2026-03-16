@@ -56,14 +56,13 @@ struct CheckoutView: View {
             VStack(alignment: .leading, spacing: 0) {
                 // Step indicator
                 Text("STEP 02")
-                    .font(.system(size: 11, weight: .semibold))
+                    .font(.system(size: 11, weight: .semibold, design: .default))
                     .tracking(2)
                     .foregroundColor(Color(white: 0.50))
                     .padding(.top, 8)
                 
                 Text("Payment Method")
-                    .font(.system(size: 30, weight: .bold, design: .serif))
-                    .italic()
+                    .font(.system(size: 30, weight: .bold, design: .default))
                     .foregroundColor(.black)
                     .padding(.top, 6)
                 
@@ -139,6 +138,11 @@ struct CheckoutView: View {
                 selectedStoreAddress = store.address
                 showStoreLocator = false
             })
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .popToRootHome)) { _ in
+            // Reset navigation state when pop to root is triggered
+            showOrderConfirmation = false
+            showStoreLocator = false
         }
     }
     
@@ -281,7 +285,7 @@ struct CheckoutView: View {
     private var addressSection: some View {
         VStack(alignment: .leading, spacing: 14) {
             Text("BILLING ADDRESS")
-                .font(.system(size: 10, weight: .semibold))
+                .font(.system(size: 10, weight: .semibold, design: .default))
                 .tracking(1.5)
                 .foregroundColor(Color(white: 0.45))
             
@@ -364,7 +368,7 @@ struct CheckoutView: View {
     private var storeSection: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("PICKUP STORE")
-                .font(.system(size: 10, weight: .semibold))
+                .font(.system(size: 10, weight: .semibold, design: .default))
                 .tracking(1.5)
                 .foregroundColor(Color(white: 0.45))
             
@@ -414,13 +418,12 @@ struct CheckoutView: View {
     private var orderSummary: some View {
         VStack(alignment: .leading, spacing: 0) {
             Text("REVIEW")
-                .font(.system(size: 10, weight: .semibold))
+                .font(.system(size: 10, weight: .semibold, design: .default))
                 .tracking(1.5)
                 .foregroundColor(Color(white: 0.45))
             
             Text("Order Summary")
-                .font(.system(size: 24, weight: .bold, design: .serif))
-                .italic()
+                .font(.system(size: 24, weight: .bold, design: .default))
                 .foregroundColor(.black)
                 .padding(.top, 6)
             
@@ -471,12 +474,11 @@ struct CheckoutView: View {
                 
                 HStack {
                     Text("Total")
-                        .font(.system(size: 20, weight: .bold, design: .serif))
-                        .italic()
+                        .font(.system(size: 20, weight: .bold, design: .default))
                         .foregroundColor(.black)
                     Spacer()
                     Text("₹1,414.80")
-                        .font(.system(size: 20, weight: .bold))
+                        .font(.system(size: 20, weight: .bold, design: .default))
                         .foregroundColor(.black)
                 }
             }
@@ -514,20 +516,19 @@ struct CheckoutView: View {
 
 struct OrderConfirmationView: View {
     @Environment(\.dismiss) private var dismiss
-    @State private var navigateToHome = false
     
     var body: some View {
         ScrollView(.vertical, showsIndicators: false) {
             VStack(alignment: .leading, spacing: 0) {
                 // Success header
                 Text("SUCCESS")
-                    .font(.system(size: 11, weight: .semibold))
+                    .font(.system(size: 11, weight: .semibold, design: .default))
                     .tracking(2)
                     .foregroundColor(Color(red: 0.20, green: 0.65, blue: 0.40))
                     .padding(.top, 12)
                 
                 Text("Thank you\nfor your\norder.")
-                    .font(.system(size: 38, weight: .bold, design: .serif))
+                    .font(.system(size: 38, weight: .bold, design: .default))
                     .foregroundColor(.black)
                     .lineSpacing(4)
                     .padding(.top, 8)
@@ -538,8 +539,7 @@ struct OrderConfirmationView: View {
                         .font(.system(size: 12))
                         .foregroundColor(Color(white: 0.50))
                     Text("#LX-99283")
-                        .font(.system(size: 18, weight: .bold, design: .serif))
-                        .italic()
+                        .font(.system(size: 18, weight: .bold, design: .default))
                         .foregroundColor(.black)
                 }
                 .padding(.top, 16)
@@ -649,7 +649,8 @@ struct OrderConfirmationView: View {
                 
                 // Continue shopping
                 Button(action: {
-                    navigateToHome = true
+                    // Post notification to pop to root
+                    NotificationCenter.default.post(name: .popToRootHome, object: nil)
                 }) {
                     HStack(spacing: 8) {
                         Text("C O N T I N U E   S H O P P I N G")
@@ -677,29 +678,12 @@ struct OrderConfirmationView: View {
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
         .toolbar {
-            ToolbarItem(placement: .topBarLeading) {
-                Button(action: {
-                    navigateToHome = true
-                }) {
-                    HStack(spacing: 4) {
-                        Image(systemName: "chevron.left")
-                            .font(.system(size: 14, weight: .semibold))
-                        Text("Home")
-                            .font(.system(size: 16))
-                    }
-                    .foregroundColor(.black)
-                }
-            }
-            
             ToolbarItem(placement: .topBarTrailing) {
                 Button(action: {}) {
                     Image(systemName: "bag")
                         .foregroundColor(.black)
                 }
             }
-        }
-        .navigationDestination(isPresented: $navigateToHome) {
-            StoreMHomeView()
         }
     }
     
@@ -708,11 +692,11 @@ struct OrderConfirmationView: View {
         VStack(alignment: .leading, spacing: 0) {
             HStack {
                 Text("Order Summary")
-                    .font(.system(size: 22, weight: .bold, design: .serif))
+                    .font(.system(size: 22, weight: .bold, design: .default))
                     .foregroundColor(.black)
                 Spacer()
                 Text("3 Items")
-                    .font(.system(size: 13))
+                    .font(.system(size: 13, design: .default))
                     .foregroundColor(Color(white: 0.50))
             }
             
@@ -739,11 +723,11 @@ struct OrderConfirmationView: View {
             
             HStack {
                 Text("Total")
-                    .font(.system(size: 20, weight: .bold, design: .serif))
+                    .font(.system(size: 20, weight: .bold, design: .default))
                     .foregroundColor(.black)
                 Spacer()
                 Text("₹498.40")
-                    .font(.system(size: 20, weight: .bold))
+                    .font(.system(size: 20, weight: .bold, design: .default))
                     .foregroundColor(.black)
             }
         }

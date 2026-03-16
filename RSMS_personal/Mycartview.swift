@@ -13,12 +13,8 @@ struct CartItem: Identifiable {
 // MARK: - My Cart View
 struct MyCartView: View {
     @Environment(\.dismiss) private var dismiss
+    @StateObject private var cartManager = CartManager.shared
     
-    @State private var cartItems: [CartItem] = [
-        CartItem(name: "Men's Fit Black Hoodie", size: "L", price: 160, imageName: "hoodie1", quantity: 1),
-        CartItem(name: "Men's Fit Black Hoodie", size: "L", price: 160, imageName: "hoodie2", quantity: 1),
-        CartItem(name: "Men's Fit Black Hoodie", size: "L", price: 160, imageName: "hoodie3", quantity: 1)
-    ]
     @State private var promoCode: String = ""
     @State private var showSuccessAnimation = false
     @State private var navigateToTracking = false
@@ -26,7 +22,7 @@ struct MyCartView: View {
     @State private var navigateToStoreLocator = false
     
     private var subtotal: Double {
-        cartItems.reduce(0) { $0 + ($1.price * Double($1.quantity)) }
+        cartManager.subtotal
     }
     
     private let shipping: Double = 45.99
@@ -37,38 +33,58 @@ struct MyCartView: View {
     
     var body: some View {
         ZStack(alignment: .bottom) {
-            ScrollView(.vertical, showsIndicators: false) {
-                VStack(spacing: 0) {
-                    // Cart items
-                    VStack(spacing: 12) {
-                        ForEach(Array(cartItems.enumerated()), id: \.element.id) { index, item in
-                            cartItemRow(item: item, index: index)
+            if cartManager.cartItems.isEmpty {
+                // Empty cart state
+                emptyCartView
+            } else {
+                ScrollView(.vertical, showsIndicators: false) {
+                    VStack(spacing: 0) {
+                        // Cart items
+                        VStack(spacing: 12) {
+                            ForEach(Array(cartManager.cartItems.enumerated()), id: \.element.id) { index, item in
+                                cartItemRow(item: item, index: index)
+                            }
                         }
+                        .padding(.horizontal, 20)
+                        .padding(.top, 20)
+                        
+                        // Promo code
+                        promoCodeSection
+                            .padding(.horizontal, 20)
+                            .padding(.top, 28)
+                        
+                        // Order summary
+                        orderSummary
+                            .padding(.horizontal, 20)
+                            .padding(.top, 28)
+                        
+                        // Space for bottom button
+                        Spacer().frame(height: 120)
                     }
-                    .padding(.horizontal, 20)
-                    .padding(.top, 20)
-                    
-                    // Promo code
-                    promoCodeSection
-                        .padding(.horizontal, 20)
-                        .padding(.top, 28)
-                    
-                    // Order summary
-                    orderSummary
-                        .padding(.horizontal, 20)
-                        .padding(.top, 28)
-                    
-                    // Space for bottom button
-                    Spacer().frame(height: 120)
                 }
+                .background(Color(red: 0.97, green: 0.97, blue: 0.97))
+                
+                // Pinned checkout button
+                checkoutButton
             }
-            .background(Color(red: 0.97, green: 0.97, blue: 0.97))
-            
-            // Pinned checkout button
-            checkoutButton
         }
         .navigationTitle("My Cart")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                if !cartManager.cartItems.isEmpty {
+                    Button(action: {
+                        withAnimation {
+                            cartManager.clearCart()
+                        }
+                    }) {
+                        Text("Clear")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundColor(.red)
+                    }
+                }
+            }
+        }
         .sheet(isPresented: $showSuccessAnimation, onDismiss: {
             // Navigate to order tracking after sheet dismisses
             navigateToTracking = true
@@ -83,6 +99,11 @@ struct MyCartView: View {
         }
         .navigationDestination(isPresented: $navigateToStoreLocator) {
             StoreLocatorView()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .popToRootHome)) { _ in
+            // Reset navigation state when pop to root is triggered
+            navigateToStoreLocator = false
+            navigateToTracking = false
         }
         .sheet(isPresented: $showCheckoutOptions) {
             CheckoutOptionsSheet(
@@ -107,6 +128,26 @@ struct MyCartView: View {
         }
     }
     
+    // MARK: - Empty Cart View
+    private var emptyCartView: some View {
+        VStack(spacing: 20) {
+            Image(systemName: "cart")
+                .font(.system(size: 80, weight: .thin))
+                .foregroundColor(.gray.opacity(0.4))
+            
+            Text("Your Cart is Empty")
+                .font(.system(size: 24, weight: .bold))
+                .foregroundColor(.primary)
+            
+            Text("Add items to your cart to see them here")
+                .font(.system(size: 15))
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color(red: 0.97, green: 0.97, blue: 0.97))
+    }
+    
     // MARK: - Cart Item Row
     private func cartItemRow(item: CartItem, index: Int) -> some View {
         HStack(spacing: 14) {
@@ -115,7 +156,7 @@ struct MyCartView: View {
                 .fill(Color(red: 0.92, green: 0.92, blue: 0.93))
                 .frame(width: 80, height: 80)
                 .overlay(
-                    Image(systemName: "tshirt.fill")
+                    Image(systemName: item.imageName)
                         .font(.system(size: 28, weight: .light))
                         .foregroundColor(.gray.opacity(0.4))
                 )
@@ -138,7 +179,7 @@ struct MyCartView: View {
                     // Delete button
                     Button {
                         withAnimation(.easeInOut(duration: 0.25)) {
-                            let _ = cartItems.remove(at: index)
+                            cartManager.removeItem(at: index)
                         }
                     } label: {
                         Image(systemName: "trash")
@@ -159,22 +200,20 @@ struct MyCartView: View {
                     // Quantity controls
                     HStack(spacing: 12) {
                         Button {
-                            if cartItems[index].quantity > 1 {
-                                cartItems[index].quantity -= 1
-                            }
+                            cartManager.updateQuantity(at: index, quantity: item.quantity - 1)
                         } label: {
                             Text("–")
                                 .font(.system(size: 16, weight: .medium))
                                 .foregroundColor(.black)
                         }
                         
-                        Text("\(cartItems[index].quantity)")
+                        Text("\(item.quantity)")
                             .font(.system(size: 15, weight: .semibold))
                             .foregroundColor(.black)
                             .frame(minWidth: 14)
                         
                         Button {
-                            cartItems[index].quantity += 1
+                            cartManager.updateQuantity(at: index, quantity: item.quantity + 1)
                         } label: {
                             Text("+")
                                 .font(.system(size: 16, weight: .medium))
@@ -190,6 +229,10 @@ struct MyCartView: View {
                 .fill(.white)
                 .shadow(color: .black.opacity(0.03), radius: 6, y: 2)
         )
+        .transition(.asymmetric(
+            insertion: .scale.combined(with: .opacity),
+            removal: .scale.combined(with: .opacity)
+        ))
     }
     
     // MARK: - Promo Code

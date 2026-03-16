@@ -26,6 +26,7 @@ struct ProductItem: Identifiable {
 // MARK: - Main View
 struct ProductDetailsView: View {
     @Environment(\.dismiss) private var dismiss
+    @StateObject private var cartManager = CartManager.shared
 
     @State private var selectedColorIndex  = 0
     @State private var selectedSizeIndex   = 1
@@ -39,6 +40,9 @@ struct ProductDetailsView: View {
     @State private var is360Mode = false
 
     @State private var isFavorite = false
+    
+    // For capturing button frame for animation
+    @State private var addToCartButtonFrame: CGRect = .zero
 
     private let colors: [ProductColor] = [
         ProductColor(color: Color(red: 0.20, green: 0.45, blue: 0.80)),
@@ -88,20 +92,32 @@ struct ProductDetailsView: View {
                     productInfoCard
                 }
             }
+            
+            // Add to cart animation overlay
+            AddToCartAnimationOverlay()
         }
         .navigationTitle("Product Details")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                    withAnimation(.spring(response: 0.4, dampingFraction: 0.6)) {
-                        isFavorite.toggle()
-                    }
-                } label: {
-                    Image(systemName: isFavorite ? "heart.fill" : "heart")
+                HStack(spacing: 16) {
+                    // Cart icon with badge
+                    Image(systemName: "cart")
                         .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(isFavorite ? .red : .primary)
+                        .foregroundColor(.primary)
+                        .cartBadge()
+                    
+                    // Favorite button
+                    Button {
+                        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                        withAnimation(.spring(response: 0.4, dampingFraction: 0.6)) {
+                            isFavorite.toggle()
+                        }
+                    } label: {
+                        Image(systemName: isFavorite ? "heart.fill" : "heart")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(isFavorite ? .red : .primary)
+                    }
                 }
             }
         }
@@ -363,17 +379,46 @@ struct ProductDetailsView: View {
             Spacer().frame(height: 28)
 
             Button(action: {
+                // Haptic feedback
                 UINotificationFeedbackGenerator().notificationOccurred(.success)
+                
+                // Get current product info
+                let currentProduct = products[currentProductIndex]
+                let selectedColor = colors[selectedColorIndex]
+                let selectedSize = sizes[selectedSizeIndex]
+                
+                // Add to cart
+                cartManager.addToCart(
+                    product: currentProduct,
+                    color: selectedColor,
+                    size: selectedSize,
+                    quantity: 1
+                )
+                
+                // Trigger animation from button position
+                cartManager.triggerAddToCartAnimation(from: addToCartButtonFrame)
             }) {
-                Text("Add to Cart")
-                    .font(.system(size: 17, weight: .bold, design: .rounded))
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 56)
-                    .background(Color.primary)
-                    .clipShape(Capsule())
-                    .shadow(color: .black.opacity(0.15), radius: 10, y: 4)
+                GeometryReader { geo in
+                    Text("Add to Cart")
+                        .font(.system(size: 17, weight: .bold, design: .rounded))
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 56)
+                        .background(Color.primary)
+                        .clipShape(Capsule())
+                        .shadow(color: .black.opacity(0.15), radius: 10, y: 4)
+                        .onAppear {
+                            // Capture button frame in global coordinates
+                            DispatchQueue.main.async {
+                                addToCartButtonFrame = geo.frame(in: .global)
+                            }
+                        }
+                        .onChange(of: geo.frame(in: .global)) { oldValue, newValue in
+                            addToCartButtonFrame = newValue
+                        }
+                }
             }
+            .frame(height: 56)
         }
         .padding(24)
         .background(
