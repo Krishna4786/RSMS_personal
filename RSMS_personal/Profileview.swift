@@ -63,7 +63,9 @@ struct ProfileView: View {
                 
                 // MARK: - Support & Settings
                 VStack(spacing: 0) {
-                    ProfileOptionRow(icon: "questionmark.circle", title: "Help & Support", color: .gray)
+                    NavigationLink(destination: SupportSystemView()) {
+                        ProfileOptionRow(icon: "questionmark.circle", title: "Help & Support", color: .gray)
+                    }
                     Divider().padding(.leading, 56)
                     ProfileOptionRow(icon: "gearshape", title: "Settings", color: .gray)
                     Divider().padding(.leading, 56)
