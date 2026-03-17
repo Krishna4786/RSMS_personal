@@ -34,9 +34,11 @@ struct SizeVariant: Identifiable {
 
 // MARK: - Main Home View
 struct StoreMHomeView: View {
+    @StateObject private var wishlistManager = WishlistManager.shared
     @State private var selectedCategory = "All"
     @State private var previewProduct: Product? = nil
     @State private var showPreview = false
+    @State private var selectedProduct: Product? = nil
     @State private var navigateToDetail = false
     @State private var showNotifications = false
     @State private var products: [Product] = [
@@ -74,7 +76,7 @@ struct StoreMHomeView: View {
                 .navigationTitle("Store.M")
                 .navigationBarTitleDisplayMode(.large)
                 .navigationDestination(isPresented: $navigateToDetail) {
-                    ProductDetailsView()
+                    ProductDetailsView(product: selectedProduct)
                 }
                 .navigationDestination(isPresented: $showNotifications) {
                     NotificationsView()
@@ -358,6 +360,7 @@ struct StoreMHomeView: View {
             LazyVGrid(columns: columns, spacing: 14) {
                 ForEach($products) { $product in
                     ProductCard(product: $product, onTap: {
+                        selectedProduct = product
                         navigateToDetail = true
                     }, onLongPress: {
                         previewProduct = product
@@ -485,6 +488,7 @@ struct ProductCardShape: Shape {
 
 // MARK: - Product Card
 struct ProductCard: View {
+    @ObservedObject private var wishlistManager = WishlistManager.shared
     @Binding var product: Product
     var onTap: () -> Void
     var onLongPress: () -> Void
@@ -548,11 +552,18 @@ struct ProductCard: View {
 
     private var heartButton: some View {
         Button {
-            product.isFavorite.toggle()
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                wishlistManager.toggleFavorite(product)
+                product.isFavorite = wishlistManager.isFavorite(product)
+            }
+            
+            // Haptic feedback
+            let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+            impactFeedback.impactOccurred()
         } label: {
-            Image(systemName: product.isFavorite ? "heart.fill" : "heart")
+            Image(systemName: wishlistManager.isFavorite(product) ? "heart.fill" : "heart")
                 .font(.system(size: 14, weight: .medium))
-                .foregroundColor(product.isFavorite ? .red : .gray)
+                .foregroundColor(wishlistManager.isFavorite(product) ? .red : .gray)
                 .frame(width: 36, height: 36)
                 .background(Color.white)
                 .clipShape(Circle())

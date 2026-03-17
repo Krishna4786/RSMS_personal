@@ -1,65 +1,51 @@
 import SwiftUI
 
-// MARK: - Wishlist Item Model
-struct WishlistItem: Identifiable {
-    let id = UUID()
-    let name: String
-    let price: String
-    let imageName: String
-    var isFavorite: Bool = true
-}
-
 // MARK: - Wishlist View
 struct WishlistView: View {
+    @StateObject private var wishlistManager = WishlistManager.shared
     @State private var searchText = ""
-    @State private var wishlistItems: [WishlistItem] = [
-        WishlistItem(name: "Dries Van Noten", price: "$580", imageName: "wishlist1"),
-        WishlistItem(name: "Wales Bonner", price: "$280", imageName: "wishlist2"),
-        WishlistItem(name: "Button Blazer", price: "$1745", imageName: "wishlist3"),
-        WishlistItem(name: "Still Kelly", price: "$330", imageName: "wishlist4"),
-        WishlistItem(name: "Dries Van Noten", price: "$580", imageName: "wishlist5"),
-        WishlistItem(name: "Wales Bonner", price: "$280", imageName: "wishlist6")
-    ]
     
     private let columns = [
         GridItem(.flexible(), spacing: 14),
         GridItem(.flexible(), spacing: 14)
     ]
     
-    var filteredItems: [WishlistItem] {
+    var filteredItems: [Product] {
         if searchText.isEmpty {
-            return wishlistItems
+            return wishlistManager.wishlistItems
         }
-        return wishlistItems.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
+        return wishlistManager.wishlistItems.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
     }
     
     var body: some View {
         NavigationStack {
             ScrollView(.vertical, showsIndicators: false) {
                 VStack(spacing: 0) {
-                    // Search bar
-                    searchBarSection
-                        .padding(.top, 8)
-                    
-                    // Product grid
-                    LazyVGrid(columns: columns, spacing: 14) {
-                        ForEach(Array(filteredItems.enumerated()), id: \.element.id) { index, item in
-                            WishlistCard(
-                                item: item,
-                                onRemove: {
-                                    withAnimation(.easeInOut(duration: 0.25)) {
-                                        if let idx = wishlistItems.firstIndex(where: { $0.id == item.id }) {
-                                            wishlistItems.remove(at: idx)
+                    if wishlistManager.wishlistItems.isEmpty {
+                        emptyStateView
+                    } else {
+                        // Search bar
+                        searchBarSection
+                            .padding(.top, 8)
+                        
+                        // Product grid
+                        LazyVGrid(columns: columns, spacing: 14) {
+                            ForEach(filteredItems) { item in
+                                WishlistCard(
+                                    product: item,
+                                    onRemove: {
+                                        withAnimation(.easeInOut(duration: 0.25)) {
+                                            wishlistManager.removeFromWishlist(item)
                                         }
                                     }
-                                }
-                            )
+                                )
+                            }
                         }
+                        .padding(.horizontal, 20)
+                        .padding(.top, 20)
+                        
+                        Spacer().frame(height: 30)
                     }
-                    .padding(.horizontal, 20)
-                    .padding(.top, 20)
-                    
-                    Spacer().frame(height: 30)
                 }
             }
             .background(Color.storeBackground)
@@ -67,12 +53,45 @@ struct WishlistView: View {
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button(action: {}) {
-                        Image(systemName: "slider.horizontal.3")
+                    if !wishlistManager.wishlistItems.isEmpty {
+                        Button(action: {
+                            withAnimation {
+                                wishlistManager.clearWishlist()
+                            }
+                        }) {
+                            Text("Clear All")
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundColor(.red)
+                        }
                     }
                 }
             }
         }
+    }
+    
+    // MARK: - Empty State View
+    private var emptyStateView: some View {
+        VStack(spacing: 16) {
+            Spacer()
+            
+            Image(systemName: "heart.slash")
+                .font(.system(size: 60, weight: .light))
+                .foregroundColor(.storeTextSecondary.opacity(0.5))
+            
+            Text("Your Wishlist is Empty")
+                .font(.system(size: 20, weight: .semibold))
+                .foregroundColor(.storeTextPrimary)
+            
+            Text("Add products you love by tapping the heart icon")
+                .font(.system(size: 14))
+                .foregroundColor(.storeTextSecondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 40)
+            
+            Spacer()
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(.vertical, 60)
     }
     
     // MARK: - Search Bar
@@ -111,17 +130,18 @@ struct WishlistView: View {
 
 // MARK: - Wishlist Card
 struct WishlistCard: View {
-    let item: WishlistItem
+    @ObservedObject private var wishlistManager = WishlistManager.shared
+    let product: Product
     let onRemove: () -> Void
     
     var body: some View {
-        NavigationLink(destination: ProductDetailsView()) {
+        NavigationLink(destination: ProductDetailsView(product: product)) {
             VStack(alignment: .leading, spacing: 12) {
                 // IMAGE CONTAINER
                 Color.gray.opacity(0.12)
                     .frame(height: 170)
                     .overlay(
-                        Image(item.imageName)
+                        Image(product.imageName)
                             .resizable()
                             .scaledToFit()
                             .padding(20)
@@ -130,11 +150,11 @@ struct WishlistCard: View {
                 
                 // PRODUCT INFO
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(item.name)
+                    Text(product.name)
                         .font(.system(size: 14, weight: .medium))
                         .foregroundColor(.storeTextPrimary)
                     
-                    Text(item.price)
+                    Text(product.price)
                         .font(.system(size: 18, weight: .bold))
                         .foregroundColor(.storeTextPrimary)
                 }
@@ -161,10 +181,14 @@ struct WishlistCard: View {
     private var heartButton: some View {
         Button {
             onRemove()
+            
+            // Haptic feedback
+            let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+            impactFeedback.impactOccurred()
         } label: {
-            Image(systemName: item.isFavorite ? "heart.fill" : "heart")
+            Image(systemName: "heart.fill")
                 .font(.system(size: 14, weight: .medium))
-                .foregroundColor(item.isFavorite ? .red : .gray)
+                .foregroundColor(.red)
                 .frame(width: 36, height: 36)
                 .background(Color.white)
                 .clipShape(Circle())

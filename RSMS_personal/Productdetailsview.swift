@@ -27,6 +27,10 @@ struct ProductItem: Identifiable {
 struct ProductDetailsView: View {
     @Environment(\.dismiss) private var dismiss
     @StateObject private var cartManager = CartManager.shared
+    @StateObject private var wishlistManager = WishlistManager.shared
+    
+    // Accept the product from the previous view
+    var product: Product?
 
     @State private var selectedColorIndex  = 0
     @State private var selectedSizeIndex   = 1
@@ -38,8 +42,6 @@ struct ProductDetailsView: View {
 
     // 360 / SceneKit orbit mode
     @State private var is360Mode = false
-
-    @State private var isFavorite = false
     
     // For capturing button frame for animation
     @State private var addToCartButtonFrame: CGRect = .zero
@@ -109,12 +111,15 @@ struct ProductDetailsView: View {
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
                     UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                    withAnimation(.spring(response: 0.4, dampingFraction: 0.6)) {
-                        isFavorite.toggle()
+                    if let product = product {
+                        withAnimation(.spring(response: 0.4, dampingFraction: 0.6)) {
+                            wishlistManager.toggleFavorite(product)
+                        }
                     }
                 } label: {
-                    Image(systemName: isFavorite ? "heart.fill" : "heart")
-                        .foregroundColor(isFavorite ? .red : .storePrimary)
+                    let isFavorited = product.map { wishlistManager.isFavorite($0) } ?? false
+                    Image(systemName: isFavorited ? "heart.fill" : "heart")
+                        .foregroundColor(isFavorited ? .red : .storePrimary)
                 }
             }
         }
