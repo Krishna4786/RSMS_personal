@@ -21,14 +21,11 @@ struct MainTabView: View {
             Tab("Wishlist", systemImage: "heart", value: 1) {
                 WishlistView()
             }
-            Tab("Membership", systemImage: "crown", value: 3) {
+            Tab("Membership", systemImage: "crown", value: 2) {
                 MembershipView()
             }
-            Tab("Orders", systemImage: "bag", value: 2) {
-                MyOrdersView()
-            }
             
-            Tab("Profile", systemImage: "person", value: 4) {
+            Tab("Profile", systemImage: "person", value: 3) {
                 NavigationStack {
                     ProfileView()
                 }
