@@ -152,7 +152,7 @@ struct SupportSystemView: View {
 
             Spacer()
 
-            Text("Support System")
+            Text("Help & Support")
                 .font(.system(size: 18, weight: .bold))
                 .foregroundColor(.black)
 
