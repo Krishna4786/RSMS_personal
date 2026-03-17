@@ -1,762 +1,385 @@
 import SwiftUI
 
-// MARK: - Membership Color Theme
-extension Color {
-    static let memberGold = Color(red: 0.95, green: 0.75, blue: 0.25)
-    static let memberDark = Color(red: 0.08, green: 0.08, blue: 0.10)
-    static let memberAccent = Color(red: 1.0, green: 0.80, blue: 0.30)
+// MARK: - Transaction Model
+struct Transaction: Identifiable {
+    let id = UUID()
+    let productName: String
+    let category: String
+    let points: Int
+    let imageName: String
 }
 
-// MARK: - Membership Benefit
-struct MembershipBenefit: Identifiable {
+// MARK: - Side Menu Item
+struct SideMenuItem: Identifiable {
     let id = UUID()
     let icon: String
-    let title: String
-    let subtitle: String
+    let label: String
 }
 
-// MARK: - Plan Option
-struct PlanOption: Identifiable {
-    let id = UUID()
-    let name: String
-    let price: String
-    let per: String
-    let perMonth: String
-    let savings: String?
-}
-
-// MARK: - Points Activity
-struct PointsActivity: Identifiable {
-    let id = UUID()
-    let title: String
-    let date: String
-    let points: String
-    let isEarned: Bool
-}
-
-// MARK: - Appointment
-struct MemberAppointment: Identifiable {
-    let id = UUID()
-    let type: String
-    let date: String
-    let time: String
-    let status: String
-}
-
-// MARK: - Main Membership View (Router)
+// MARK: - Membership View
 struct MembershipView: View {
-    @State private var isMember = false
-    
+
+    @State private var cardAppeared = false
+    @State private var menuAppeared = false
+    @State private var transactionsAppeared = false
+    @State private var shimmerOffset: CGFloat = -200
+
+    private let sideMenuItems: [SideMenuItem] = [
+        SideMenuItem(icon: "star.fill", label: "My Points"),
+        SideMenuItem(icon: "person.2.fill", label: "My Benefits"),
+        SideMenuItem(icon: "calendar.badge.clock", label: "Appointments"),
+    ]
+
+    private let transactions: [Transaction] = [
+        Transaction(productName: "Jordan Lows", category: "Shoes", points: 20, imageName: "shoe"),
+        Transaction(productName: "Classic Tee", category: "Apparel", points: 15, imageName: "tshirt"),
+        Transaction(productName: "Jordan Lows", category: "Shoes", points: 20, imageName: "shoe"),
+        Transaction(productName: "Wool Scarf", category: "Accessories", points: 10, imageName: "scarf"),
+    ]
+
     var body: some View {
         NavigationStack {
-            if isMember {
-                MembershipDashboardView(isMember: $isMember)
-            } else {
-                MembershipIntroView(isMember: $isMember)
-            }
-        }
-    }
-}
-
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// MARK: - INTRO / SPLASH SCREEN
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-struct MembershipIntroView: View {
-    @Binding var isMember: Bool
-    @State private var showPricingSheet = false
-    @State private var animateIn = false
-    
-    private let benefits: [MembershipBenefit] = [
-        MembershipBenefit(icon: "shippingbox.fill", title: "Free Delivery", subtitle: "Unlimited free shipping on all orders"),
-        MembershipBenefit(icon: "calendar.badge.clock", title: "Book Appointments", subtitle: "Priority scheduling & exclusive slots"),
-        MembershipBenefit(icon: "star.circle.fill", title: "Points System", subtitle: "Earn & redeem points on every purchase"),
-        MembershipBenefit(icon: "tag.fill", title: "Exclusive Deals", subtitle: "Members-only discounts & early access"),
-        MembershipBenefit(icon: "arrow.counterclockwise", title: "Extended Returns", subtitle: "60-day hassle-free return window"),
-    ]
-    
-    var body: some View {
-        ZStack {
-            // Background gradient
-            LinearGradient(
-                colors: [
-                    Color.memberDark,
-                    Color(red: 0.12, green: 0.11, blue: 0.14),
-                    Color(red: 0.10, green: 0.09, blue: 0.12)
-                ],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .ignoresSafeArea()
-            
-            // Decorative gold circles
-            Circle()
-                .fill(Color.memberGold.opacity(0.06))
-                .frame(width: 300, height: 300)
-                .offset(x: -120, y: -280)
-            
-            Circle()
-                .fill(Color.memberGold.opacity(0.04))
-                .frame(width: 200, height: 200)
-                .offset(x: 140, y: -180)
-            
             ScrollView(.vertical, showsIndicators: false) {
                 VStack(spacing: 0) {
-                    Spacer().frame(height: 20)
-                    
-                    // Crown icon
-                    ZStack {
-                        Circle()
-                            .fill(Color.memberGold.opacity(0.15))
-                            .frame(width: 80, height: 80)
-                        
-                        Image(systemName: "crown.fill")
-                            .font(.system(size: 32))
-                            .foregroundColor(.memberGold)
-                    }
-                    .opacity(animateIn ? 1 : 0)
-                    .offset(y: animateIn ? 0 : 20)
-                    
-                    Spacer().frame(height: 20)
-                    
-                    // Title
-                    VStack(spacing: 8) {
-                        Text("STORE.M")
-                            .font(.system(size: 13, weight: .bold))
-                            .tracking(4)
-                            .foregroundColor(.memberGold)
-                        
-                        Text("Go Premium")
-                            .font(.system(size: 34, weight: .heavy))
-                            .foregroundColor(.white)
-                        
-                        Text("Unlock the full Store.M experience\nwith exclusive member benefits")
-                            .font(.system(size: 15))
-                            .foregroundColor(Color(white: 0.55))
-                            .multilineTextAlignment(.center)
-                            .lineSpacing(3)
-                    }
-                    .opacity(animateIn ? 1 : 0)
-                    .offset(y: animateIn ? 0 : 15)
-                    
-                    Spacer().frame(height: 32)
-                    
-                    // Benefits list
-                    VStack(spacing: 0) {
-                        ForEach(Array(benefits.enumerated()), id: \.element.id) { index, benefit in
-                            benefitRow(benefit: benefit)
-                                .opacity(animateIn ? 1 : 0)
-                                .offset(y: animateIn ? 0 : 10)
-                                .animation(.easeOut(duration: 0.4).delay(Double(index) * 0.08 + 0.2), value: animateIn)
-                            
-                            if index < benefits.count - 1 {
-                                Rectangle()
-                                    .fill(Color.white.opacity(0.06))
-                                    .frame(height: 1)
-                                    .padding(.leading, 56)
-                            }
-                        }
-                    }
-                    .padding(.vertical, 8)
-                    .background(
-                        RoundedRectangle(cornerRadius: 20, style: .continuous)
-                            .fill(Color.white.opacity(0.05))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 20, style: .continuous)
-                                    .stroke(Color.white.opacity(0.08), lineWidth: 1)
-                            )
-                    )
-                    .padding(.horizontal, 20)
-                    
-                    Spacer().frame(height: 28)
-                    
-                    // CTA Button — opens pricing sheet
-                    Button {
-                        showPricingSheet = true
-                    } label: {
-                        HStack(spacing: 8) {
-                            Text("View Plans")
-                                .font(.system(size: 17, weight: .bold))
-                            Image(systemName: "arrow.right")
-                                .font(.system(size: 14, weight: .bold))
-                        }
-                        .foregroundColor(.memberDark)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 56)
-                        .background(
-                            RoundedRectangle(cornerRadius: 28)
-                                .fill(
-                                    LinearGradient(
-                                        colors: [.memberGold, .memberAccent],
-                                        startPoint: .leading,
-                                        endPoint: .trailing
-                                    )
-                                )
-                                .shadow(color: .memberGold.opacity(0.3), radius: 16, y: 6)
-                        )
-                    }
-                    .padding(.horizontal, 20)
-                    
-                    // Skip
-                    Button {
-                        isMember = true
-                    } label: {
-                        Text("Skip for now")
-                            .font(.system(size: 14))
-                            .foregroundColor(Color(white: 0.45))
-                    }
-                    .padding(.top, 14)
-                    
-                    // Terms
-                    Text("Recurring billing, cancel anytime.\nTerms & Conditions apply.")
-                        .font(.system(size: 11))
-                        .foregroundColor(Color(white: 0.30))
-                        .multilineTextAlignment(.center)
-                        .padding(.top, 12)
-                    
-                    Spacer().frame(height: 30)
+                    // MARK: - Card + Side Menu Section
+                    cardSection
+                        .padding(.top, 20)
+
+                    // MARK: - Recent Transactions
+                    transactionsSection
+                        .padding(.top, 24)
+                        .padding(.bottom, 40)
                 }
             }
-        }
-        .navigationBarHidden(true)
-        .onAppear {
-            withAnimation(.easeOut(duration: 0.6)) {
-                animateIn = true
+            .background(Color(red: 0.93, green: 0.93, blue: 0.93))
+            .navigationTitle("Membership")
+            .navigationBarTitleDisplayMode(.large)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button(action: {}) {
+                        Image(systemName: "slider.horizontal.3")
+                    }
+                }
             }
-        }
-        .sheet(isPresented: $showPricingSheet) {
-            PricingSheetView(isMember: $isMember)
-                .presentationDetents([.medium, .large])
-                .presentationDragIndicator(.visible)
-                .presentationCornerRadius(28)
+            .onAppear { triggerAnimations() }
         }
     }
-    
-    // Benefit row — same layout as your working version
-    private func benefitRow(benefit: MembershipBenefit) -> some View {
-        HStack(spacing: 14) {
-            Image(systemName: benefit.icon)
-                .font(.system(size: 18))
-                .foregroundColor(.memberGold)
-                .frame(width: 40, height: 40)
-                .background(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .fill(Color.memberGold.opacity(0.12))
-                )
-            
-            VStack(alignment: .leading, spacing: 2) {
-                Text(benefit.title)
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundColor(.white)
-                Text(benefit.subtitle)
-                    .font(.system(size: 12))
-                    .foregroundColor(Color(white: 0.50))
-            }
-            
-            Spacer()
-            
-            Image(systemName: "checkmark.circle.fill")
-                .font(.system(size: 18))
-                .foregroundColor(.memberGold.opacity(0.7))
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 14)
-    }
-}
 
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// MARK: - PRICING SHEET (Native iOS Sheet)
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-struct PricingSheetView: View {
-    @Binding var isMember: Bool
-    @Environment(\.dismiss) private var dismiss
-    @State private var selectedPlan = 1 // Yearly pre-selected
-    
-    private let plans: [PlanOption] = [
-        PlanOption(name: "Monthly", price: "₹199", per: "1 month", perMonth: "₹199/mo", savings: nil),
-        PlanOption(name: "Yearly", price: "₹1,499", per: "1 year", perMonth: "₹125/mo", savings: "Save 37%"),
-    ]
-    
-    var body: some View {
+    // MARK: - Card Section with Side Menu
+    private var cardSection: some View {
         VStack(spacing: 0) {
-            Spacer().frame(height: 16)
-            
-            // Header
-            HStack(spacing: 10) {
+            HStack(alignment: .center, spacing: 0) {
+                // Left Side Menu
+                VStack(spacing: 20) {
+                    ForEach(Array(sideMenuItems.enumerated()), id: \.element.id) { index, item in
+                        sideMenuButton(item: item, index: index)
+                    }
+                }
+                .padding(.leading, 8)
+
+                Spacer(minLength: 10)
+
+                // Card Stack
+                cardStack
+                    .padding(.trailing, 20)
+            }
+            .padding(.vertical, 30)
+            .background(
+                RoundedRectangle(cornerRadius: 24, style: .continuous)
+                    .fill(Color(red: 0.88, green: 0.88, blue: 0.88))
+            )
+            .padding(.horizontal, 16)
+
+            // Valid Till
+            HStack {
+                Spacer()
+                Text("Valid Till Dec 2026")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(Color(white: 0.45))
+                    .padding(.top, 10)
+                    .padding(.trailing, 28)
+            }
+        }
+    }
+
+    // MARK: - Side Menu Button
+    private func sideMenuButton(item: SideMenuItem, index: Int) -> some View {
+        Button {
+            // Handle tap
+        } label: {
+            VStack(spacing: 6) {
                 ZStack {
                     Circle()
-                        .fill(Color.memberGold)
-                        .frame(width: 40, height: 40)
-                    Image(systemName: "crown.fill")
-                        .font(.system(size: 16))
-                        .foregroundColor(.white)
-                }
-                
-                Text("Premium")
-                    .font(.system(size: 22, weight: .bold))
-                    .foregroundColor(.black)
-            }
-            
-            Spacer().frame(height: 8)
-            
-            Text("Save more with the Yearly plan")
-                .font(.system(size: 15))
-                .foregroundColor(Color(white: 0.50))
-            
-            Spacer().frame(height: 28)
-            
-            // Plan cards
-            HStack(spacing: 14) {
-                ForEach(Array(plans.enumerated()), id: \.element.id) { index, plan in
-                    planCard(plan: plan, isSelected: selectedPlan == index) {
-                        withAnimation(.easeInOut(duration: 0.2)) {
-                            selectedPlan = index
-                        }
-                    }
-                }
-            }
-            .padding(.horizontal, 24)
-            
-            Spacer().frame(height: 28)
-            
-            // Subscribe button
-            Button {
-                dismiss()
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                    isMember = true
-                }
-            } label: {
-                Text("Subscribe Now")
-                    .font(.system(size: 17, weight: .bold))
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 56)
-                    .background(
-                        RoundedRectangle(cornerRadius: 28)
-                            .fill(Color.memberDark)
-                    )
-            }
-            .padding(.horizontal, 24)
-            
-            Spacer().frame(height: 16)
-            
-            // Terms
-            VStack(spacing: 6) {
-                Text("Recurring billing, cancel anytime. Save 37% with\nYearly plan compared to Monthly.")
-                    .font(.system(size: 12))
-                    .foregroundColor(Color(white: 0.55))
-                    .multilineTextAlignment(.center)
-                    .lineSpacing(2)
-                
-                Button(action: {}) {
-                    Text("Terms & Conditions & Privacy Policy Apply")
-                        .font(.system(size: 12, weight: .medium))
+                        .fill(.white)
+                        .frame(width: 48, height: 48)
+                        .shadow(color: .black.opacity(0.08), radius: 8, y: 3)
+
+                    Image(systemName: item.icon)
+                        .font(.system(size: 18, weight: .semibold))
                         .foregroundColor(.black)
-                        .underline()
                 }
-            }
-            
-            Spacer()
-        }
-        .padding(.top, 10)
-    }
-    
-    // Plan card — selected is WHITE, unselected is gold-tinted
-    private func planCard(plan: PlanOption, isSelected: Bool, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            VStack(spacing: 0) {
-                if let savings = plan.savings {
-                    Text(savings)
-                        .font(.system(size: 11, weight: .bold))
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 5)
-                        .background(Capsule().fill(Color.memberGold))
-                        .padding(.top, 14)
-                } else {
-                    Spacer().frame(height: 38)
-                }
-                
-                Spacer().frame(height: 14)
-                
-                Text(plan.per)
-                    .font(.system(size: 13))
-                    .foregroundColor(Color(white: 0.50))
-                
-                Spacer().frame(height: 6)
-                
-                Text(plan.price)
-                    .font(.system(size: 30, weight: .heavy, design: .rounded))
+
+                Text(item.label)
+                    .font(.system(size: 11, weight: .semibold))
                     .foregroundColor(.black)
-                
-                Spacer().frame(height: 8)
-                
-                Text(plan.perMonth)
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(isSelected ? Color(white: 0.40) : Color.memberGold)
-                
-                Spacer().frame(height: 18)
+                    .multilineTextAlignment(.center)
+                    .frame(width: 85)
+                    .fixedSize(horizontal: false, vertical: true)
             }
-            .frame(maxWidth: .infinity)
-            .background(
-                RoundedRectangle(cornerRadius: 20, style: .continuous)
-                    .fill(isSelected ? .white : Color.memberGold.opacity(0.08))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 20, style: .continuous)
-                            .stroke(
-                                isSelected ? Color(white: 0.85) : Color.memberGold.opacity(0.5),
-                                lineWidth: isSelected ? 1 : 2
-                            )
-                    )
-                    .shadow(color: isSelected ? .black.opacity(0.08) : .clear, radius: 8, y: 3)
-            )
         }
         .buttonStyle(.plain)
+        .offset(x: menuAppeared ? 0 : -60)
+        .opacity(menuAppeared ? 1 : 0)
+        .animation(
+            .spring(response: 0.6, dampingFraction: 0.7).delay(Double(index) * 0.12 + 0.3),
+            value: menuAppeared
+        )
     }
-}
 
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// MARK: - MEMBERSHIP DASHBOARD
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-struct MembershipDashboardView: View {
-    @Binding var isMember: Bool
-    @State private var selectedTab = 0
-    
-    private let pointsActivities: [PointsActivity] = [
-        PointsActivity(title: "Purchase: Denim Jacket", date: "10 Mar 2026", points: "+90", isEarned: true),
-        PointsActivity(title: "Redeemed: ₹200 off", date: "08 Mar 2026", points: "-200", isEarned: false),
-        PointsActivity(title: "Purchase: Running Shoes", date: "05 Mar 2026", points: "+120", isEarned: true),
-        PointsActivity(title: "Welcome Bonus", date: "01 Mar 2026", points: "+500", isEarned: true),
-        PointsActivity(title: "Referral: Krishna2883", date: "28 Feb 2026", points: "+150", isEarned: true),
-    ]
-    
-    private let appointments: [MemberAppointment] = [
-        MemberAppointment(type: "Personal Styling", date: "15 Mar 2026", time: "2:00 PM", status: "Upcoming"),
-        MemberAppointment(type: "Tailoring Consultation", date: "20 Mar 2026", time: "11:00 AM", status: "Confirmed"),
-    ]
-    
-    private let tabs = ["Overview", "Points", "Appointments"]
-    
-    var body: some View {
-        ScrollView(.vertical, showsIndicators: false) {
-            VStack(spacing: 0) {
-                membershipCard
-                    .padding(.horizontal, 20)
-                    .padding(.top, 12)
-                
-                tabSelector
-                    .padding(.top, 22)
-                
-                Group {
-                    switch selectedTab {
-                    case 0: overviewTab
-                    case 1: pointsTab
-                    case 2: appointmentsTab
-                    default: overviewTab
-                    }
-                }
-                .padding(.top, 18)
-                
-                Spacer().frame(height: 30)
-            }
-        }
-        .background(Color(red: 0.965, green: 0.965, blue: 0.965))
-        .navigationTitle("Membership")
-        .navigationBarTitleDisplayMode(.large)
-    }
-    
-    // MARK: - Membership Card
-    private var membershipCard: some View {
+    // MARK: - Card Stack
+    private var cardStack: some View {
         ZStack {
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
+            // Back card (tilted left)
+            memberCard(opacity: 0.35)
+                .rotationEffect(.degrees(cardAppeared ? -8 : 0), anchor: .bottom)
+                .scaleEffect(cardAppeared ? 0.92 : 0.95)
+                .offset(x: cardAppeared ? -14 : 0, y: cardAppeared ? 6 : 0)
+                .animation(.spring(response: 0.8, dampingFraction: 0.65).delay(0.5), value: cardAppeared)
+
+            // Middle card (tilted right)
+            memberCard(opacity: 0.6)
+                .rotationEffect(.degrees(cardAppeared ? 5 : 0), anchor: .bottom)
+                .scaleEffect(cardAppeared ? 0.96 : 0.98)
+                .offset(x: cardAppeared ? 8 : 0, y: cardAppeared ? 3 : 0)
+                .animation(.spring(response: 0.8, dampingFraction: 0.65).delay(0.35), value: cardAppeared)
+
+            // Front card (main)
+            mainCard
+                .scaleEffect(cardAppeared ? 1.0 : 0.85)
+                .opacity(cardAppeared ? 1.0 : 0)
+                .animation(.spring(response: 0.7, dampingFraction: 0.7).delay(0.15), value: cardAppeared)
+        }
+        .frame(width: 220, height: 300)
+    }
+
+    // MARK: - Background Card (faded)
+    private func memberCard(opacity: CGFloat) -> some View {
+        RoundedRectangle(cornerRadius: 20, style: .continuous)
+            .fill(
+                LinearGradient(
+                    colors: [
+                        Color(red: 0.25, green: 0.28, blue: 0.32).opacity(opacity),
+                        Color(red: 0.35, green: 0.38, blue: 0.42).opacity(opacity),
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            )
+            .frame(width: 200, height: 280)
+    }
+
+    // MARK: - Main Card
+    private var mainCard: some View {
+        ZStack {
+            // Card background gradient
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
                 .fill(
                     LinearGradient(
-                        colors: [Color.memberDark, Color(red: 0.14, green: 0.13, blue: 0.16)],
+                        colors: [
+                            Color(red: 0.22, green: 0.24, blue: 0.28),
+                            Color(red: 0.32, green: 0.35, blue: 0.40),
+                            Color(red: 0.25, green: 0.28, blue: 0.32),
+                        ],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     )
                 )
-                .frame(height: 190)
-                .shadow(color: .black.opacity(0.2), radius: 20, y: 8)
-            
-            Circle()
-                .stroke(Color.memberGold.opacity(0.08), lineWidth: 1)
-                .frame(width: 200, height: 200)
-                .offset(x: 100, y: -40)
-            
+
+            // Shimmer overlay
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            .white.opacity(0.0),
+                            .white.opacity(0.08),
+                            .white.opacity(0.0),
+                        ],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
+                .offset(x: shimmerOffset)
+                .mask(
+                    RoundedRectangle(cornerRadius: 20, style: .continuous)
+                )
+
+            // Card content
             VStack(alignment: .leading, spacing: 0) {
+                // Top: Member + Active badge
                 HStack {
-                    HStack(spacing: 6) {
-                        Image(systemName: "crown.fill")
-                            .font(.system(size: 14))
-                            .foregroundColor(.memberGold)
-                        Text("GOLD MEMBER")
-                            .font(.system(size: 11, weight: .bold))
-                            .tracking(2)
-                            .foregroundColor(.memberGold)
-                    }
+                    Text("Member")
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundColor(.white)
+
                     Spacer()
+
                     Text("Active")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundColor(.memberGold)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 4)
-                        .background(Capsule().fill(Color.memberGold.opacity(0.15)))
-                }
-                Spacer()
-                Text("Krishna Aaggarwal")
-                    .font(.system(size: 20, weight: .bold))
-                    .foregroundColor(.white)
-                Spacer().frame(height: 4)
-                HStack {
-                    HStack(spacing: 4) {
-                        Image(systemName: "star.fill").font(.system(size: 11))
-                        Text("670 Points").font(.system(size: 14, weight: .semibold))
-                    }
-                    .foregroundColor(.memberGold)
-                    Spacer()
-                    Text("Valid till Dec 2026")
-                        .font(.system(size: 12))
-                        .foregroundColor(Color(white: 0.50))
-                }
-            }
-            .padding(22)
-        }
-    }
-    
-    // MARK: - Tab Selector
-    private var tabSelector: some View {
-        HStack(spacing: 6) {
-            ForEach(Array(tabs.enumerated()), id: \.offset) { index, tab in
-                Button {
-                    withAnimation(.easeInOut(duration: 0.2)) { selectedTab = index }
-                } label: {
-                    Text(tab)
-                        .font(.system(size: 14, weight: selectedTab == index ? .bold : .medium))
-                        .foregroundColor(selectedTab == index ? .white : Color(white: 0.45))
-                        .padding(.horizontal, 18)
-                        .padding(.vertical, 10)
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 5)
                         .background(
                             Capsule()
-                                .fill(selectedTab == index ? Color.memberDark : Color.white)
-                                .shadow(color: .black.opacity(selectedTab == index ? 0.08 : 0.02), radius: 6, y: 2)
+                                .fill(Color(red: 0.22, green: 0.78, blue: 0.42))
                         )
                 }
-            }
-        }
-        .padding(.horizontal, 20)
-    }
-    
-    // MARK: - Overview Tab
-    private var overviewTab: some View {
-        VStack(spacing: 14) {
-            HStack(spacing: 12) {
-                statCard(value: "670", label: "Points", icon: "star.fill", color: .memberGold)
-                statCard(value: "12", label: "Free Deliveries", icon: "shippingbox.fill", color: Color(red: 0.20, green: 0.72, blue: 0.45))
-                statCard(value: "2", label: "Appointments", icon: "calendar", color: Color(red: 0.20, green: 0.45, blue: 0.80))
-            }
-            .padding(.horizontal, 20)
-            
-            VStack(alignment: .leading, spacing: 14) {
-                Text("Your Benefits").font(.system(size: 17, weight: .bold)).padding(.horizontal, 20)
-                VStack(spacing: 0) {
-                    dashBenefitRow(icon: "shippingbox.fill", title: "Free Delivery", detail: "Unlimited on all orders", color: Color(red: 0.20, green: 0.72, blue: 0.45))
-                    divider
-                    dashBenefitRow(icon: "calendar.badge.clock", title: "Book Appointments", detail: "Personal styling & tailoring", color: Color(red: 0.20, green: 0.45, blue: 0.80))
-                    divider
-                    dashBenefitRow(icon: "star.circle.fill", title: "Points Rewards", detail: "Earn 1 point per ₹10 spent", color: .memberGold)
-                    divider
-                    dashBenefitRow(icon: "tag.fill", title: "Exclusive Deals", detail: "Up to 30% off member pricing", color: Color(red: 0.90, green: 0.35, blue: 0.35))
+                .padding(.bottom, 20)
+
+                Spacer()
+
+                // Center: Brand logo
+                VStack(spacing: 6) {
+                    // Interlocking C's approximation
+                    Image(systemName: "infinity")
+                        .font(.system(size: 38, weight: .thin))
+                        .foregroundColor(.white.opacity(0.7))
+
+                    Text("CHANEL")
+                        .font(.system(size: 16, weight: .semibold))
+                        .tracking(4)
+                        .foregroundColor(.white.opacity(0.7))
                 }
-                .padding(.vertical, 6)
-                .background(RoundedRectangle(cornerRadius: 18).fill(.white).shadow(color: .black.opacity(0.04), radius: 10, y: 3))
-                .overlay(RoundedRectangle(cornerRadius: 18).stroke(Color(white: 0.93), lineWidth: 1))
-                .padding(.horizontal, 20)
+                .frame(maxWidth: .infinity)
+
+                Spacer()
+
+                // Bottom: Member name
+                Text("Krishna Aggarwal")
+                    .font(.system(size: 18, weight: .bold))
+                    .foregroundColor(.white)
+
+                // Member ID
+                Text("ID: MBR-2026-0451")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundColor(.white.opacity(0.5))
+                    .padding(.top, 3)
             }
-            
-            redeemBanner.padding(.horizontal, 20).padding(.top, 4)
+            .padding(20)
         }
+        .frame(width: 200, height: 280)
+        .shadow(color: .black.opacity(0.25), radius: 20, y: 10)
     }
-    
-    private func statCard(value: String, label: String, icon: String, color: Color) -> some View {
-        VStack(spacing: 8) {
-            Image(systemName: icon).font(.system(size: 18)).foregroundColor(color)
-            Text(value).font(.system(size: 22, weight: .bold)).foregroundColor(.black)
-            Text(label).font(.system(size: 11)).foregroundColor(Color(white: 0.50)).multilineTextAlignment(.center)
-        }
-        .frame(maxWidth: .infinity).padding(.vertical, 16)
-        .background(RoundedRectangle(cornerRadius: 16).fill(.white).shadow(color: .black.opacity(0.04), radius: 8, y: 3))
-        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color(white: 0.93), lineWidth: 1))
-    }
-    
-    private func dashBenefitRow(icon: String, title: String, detail: String, color: Color) -> some View {
-        HStack(spacing: 14) {
-            Image(systemName: icon).font(.system(size: 16, weight: .medium)).foregroundColor(.white)
-                .frame(width: 38, height: 38)
-                .background(RoundedRectangle(cornerRadius: 10).fill(color))
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(.system(size: 15, weight: .semibold)).foregroundColor(.black)
-                Text(detail).font(.system(size: 12)).foregroundColor(Color(white: 0.50))
+
+    // MARK: - Transactions Section
+    private var transactionsSection: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack {
+                Text("Recent Transactions")
+                    .font(.system(size: 18, weight: .bold))
+                    .foregroundColor(.black)
+
+                Spacer()
+
+                Button {
+                    // See all
+                } label: {
+                    Text("See All")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(Color(white: 0.45))
+                }
             }
-            Spacer()
-            Image(systemName: "chevron.right").font(.system(size: 12, weight: .semibold)).foregroundColor(Color(white: 0.72))
-        }
-        .padding(.horizontal, 16).padding(.vertical, 13)
-    }
-    
-    private var divider: some View {
-        Rectangle().fill(Color.gray.opacity(0.10)).frame(height: 1).padding(.leading, 68).padding(.trailing, 16)
-    }
-    
-    private var redeemBanner: some View {
-        HStack(spacing: 14) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Redeem 100 Points").font(.system(size: 16, weight: .bold)).foregroundColor(.memberDark)
-                Text("Get ₹200 off on your next order").font(.system(size: 13)).foregroundColor(Color(white: 0.45))
-            }
-            Spacer()
-            Button(action: {}) {
-                Text("Redeem").font(.system(size: 13, weight: .bold)).foregroundColor(.memberDark)
-                    .padding(.horizontal, 16).padding(.vertical, 9)
-                    .background(Capsule().fill(Color.memberGold))
-            }
-        }
-        .padding(18)
-        .background(
-            RoundedRectangle(cornerRadius: 18)
-                .fill(LinearGradient(colors: [Color.memberGold.opacity(0.12), Color.memberGold.opacity(0.05)], startPoint: .leading, endPoint: .trailing))
-                .overlay(RoundedRectangle(cornerRadius: 18).stroke(Color.memberGold.opacity(0.25), lineWidth: 1))
-        )
-    }
-    
-    // MARK: - Points Tab
-    private var pointsTab: some View {
-        VStack(spacing: 14) {
-            VStack(spacing: 6) {
-                Text("Available Points").font(.system(size: 13)).foregroundColor(Color(white: 0.50))
-                Text("670").font(.system(size: 44, weight: .heavy)).foregroundColor(.black)
-                Text("= ₹1,340 value").font(.system(size: 14, weight: .medium)).foregroundColor(.memberGold)
-            }
-            .frame(maxWidth: .infinity).padding(.vertical, 24)
-            .background(RoundedRectangle(cornerRadius: 20).fill(.white).shadow(color: .black.opacity(0.04), radius: 10, y: 3))
-            .overlay(RoundedRectangle(cornerRadius: 20).stroke(Color(white: 0.93), lineWidth: 1))
-            .padding(.horizontal, 20)
-            
-            VStack(alignment: .leading, spacing: 12) {
-                Text("Recent Activity").font(.system(size: 17, weight: .bold)).padding(.horizontal, 20)
-                VStack(spacing: 0) {
-                    ForEach(Array(pointsActivities.enumerated()), id: \.element.id) { index, activity in
-                        HStack {
-                            ZStack {
-                                Circle().fill(activity.isEarned ? Color(red: 0.20, green: 0.72, blue: 0.45).opacity(0.12) : Color.red.opacity(0.10)).frame(width: 36, height: 36)
-                                Image(systemName: activity.isEarned ? "arrow.down.left" : "arrow.up.right").font(.system(size: 13, weight: .semibold)).foregroundColor(activity.isEarned ? Color(red: 0.20, green: 0.72, blue: 0.45) : .red)
-                            }
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(activity.title).font(.system(size: 14, weight: .medium)).foregroundColor(.black)
-                                Text(activity.date).font(.system(size: 12)).foregroundColor(Color(white: 0.55))
-                            }
-                            Spacer()
-                            Text(activity.points).font(.system(size: 16, weight: .bold)).foregroundColor(activity.isEarned ? Color(red: 0.20, green: 0.72, blue: 0.45) : .red)
-                        }
-                        .padding(.horizontal, 16).padding(.vertical, 13)
-                        if index < pointsActivities.count - 1 { divider }
+            .padding(.horizontal, 24)
+
+            VStack(spacing: 0) {
+                ForEach(Array(transactions.enumerated()), id: \.element.id) { index, transaction in
+                    transactionRow(transaction: transaction, index: index)
+
+                    if index < transactions.count - 1 {
+                        Divider()
+                            .padding(.horizontal, 20)
                     }
                 }
-                .background(RoundedRectangle(cornerRadius: 18).fill(.white).shadow(color: .black.opacity(0.04), radius: 10, y: 3))
-                .overlay(RoundedRectangle(cornerRadius: 18).stroke(Color(white: 0.93), lineWidth: 1))
-                .padding(.horizontal, 20)
             }
+            .background(
+                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    .fill(.white)
+                    .shadow(color: .black.opacity(0.04), radius: 10, y: 4)
+            )
+            .padding(.horizontal, 16)
         }
     }
-    
-    // MARK: - Appointments Tab
-    private var appointmentsTab: some View {
-        VStack(spacing: 14) {
-            VStack(alignment: .leading, spacing: 12) {
-                Text("Upcoming").font(.system(size: 17, weight: .bold)).padding(.horizontal, 20)
-                ForEach(appointments) { apt in
-                    appointmentCard(apt)
-                }
-            }
-            
-            Button(action: {}) {
-                HStack(spacing: 10) {
-                    Image(systemName: "plus.circle.fill").font(.system(size: 20))
-                    Text("Book New Appointment").font(.system(size: 15, weight: .semibold))
-                }
-                .foregroundColor(.white).frame(maxWidth: .infinity).frame(height: 52)
-                .background(RoundedRectangle(cornerRadius: 16).fill(Color.memberDark))
-            }
-            .padding(.horizontal, 20).padding(.top, 6)
-            
-            VStack(alignment: .leading, spacing: 12) {
-                Text("Available Services").font(.system(size: 17, weight: .bold)).padding(.horizontal, 20)
-                VStack(spacing: 0) {
-                    serviceRow(icon: "scissors", title: "Personal Styling", time: "45 min", price: "Free")
-                    serviceDivider
-                    serviceRow(icon: "ruler", title: "Tailoring Consultation", time: "30 min", price: "Free")
-                    serviceDivider
-                    serviceRow(icon: "tshirt", title: "Wardrobe Review", time: "60 min", price: "₹299")
-                    serviceDivider
-                    serviceRow(icon: "camera", title: "Style Photoshoot", time: "90 min", price: "₹999")
-                }
-                .background(RoundedRectangle(cornerRadius: 18).fill(.white).shadow(color: .black.opacity(0.04), radius: 10, y: 3))
-                .overlay(RoundedRectangle(cornerRadius: 18).stroke(Color(white: 0.93), lineWidth: 1))
-                .padding(.horizontal, 20)
-            }
-            .padding(.top, 6)
-        }
-    }
-    
-    private func appointmentCard(_ apt: MemberAppointment) -> some View {
+
+    // MARK: - Transaction Row
+    private func transactionRow(transaction: Transaction, index: Int) -> some View {
         HStack(spacing: 14) {
-            VStack(spacing: 2) {
-                Text(apt.date.components(separatedBy: " ").first ?? "15").font(.system(size: 22, weight: .bold)).foregroundColor(.memberDark)
-                Text(apt.date.components(separatedBy: " ").dropFirst().first ?? "Mar").font(.system(size: 12, weight: .medium)).foregroundColor(Color(white: 0.50))
+            // Product thumbnail
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(Color(red: 0.93, green: 0.93, blue: 0.94))
+                .frame(width: 48, height: 48)
+                .overlay(
+                    Image(systemName: productIcon(for: transaction.category))
+                        .font(.system(size: 18, weight: .medium))
+                        .foregroundColor(Color(white: 0.55))
+                )
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(transaction.productName)
+                    .font(.system(size: 15, weight: .bold))
+                    .foregroundColor(.black)
+                Text(transaction.category)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(Color(white: 0.6))
             }
-            .frame(width: 52, height: 56)
-            .background(RoundedRectangle(cornerRadius: 14).fill(Color.memberGold.opacity(0.12)))
-            
-            VStack(alignment: .leading, spacing: 4) {
-                Text(apt.type).font(.system(size: 15, weight: .semibold)).foregroundColor(.black)
-                HStack(spacing: 4) {
-                    Image(systemName: "clock").font(.system(size: 11))
-                    Text(apt.time).font(.system(size: 13))
-                }.foregroundColor(Color(white: 0.50))
-            }
+
             Spacer()
-            Text(apt.status).font(.system(size: 12, weight: .semibold)).foregroundColor(Color(red: 0.20, green: 0.72, blue: 0.45))
-                .padding(.horizontal, 12).padding(.vertical, 6)
-                .background(RoundedRectangle(cornerRadius: 8).fill(Color(red: 0.20, green: 0.72, blue: 0.45).opacity(0.10)))
+
+            // Points
+            Text("+ \(transaction.points) points")
+                .font(.system(size: 14, weight: .bold))
+                .foregroundColor(Color(red: 0.20, green: 0.75, blue: 0.40))
         }
-        .padding(14)
-        .background(RoundedRectangle(cornerRadius: 18).fill(.white).shadow(color: .black.opacity(0.04), radius: 10, y: 3))
-        .overlay(RoundedRectangle(cornerRadius: 18).stroke(Color(white: 0.93), lineWidth: 1))
         .padding(.horizontal, 20)
+        .padding(.vertical, 14)
+        .opacity(transactionsAppeared ? 1 : 0)
+        .offset(y: transactionsAppeared ? 0 : 20)
+        .animation(
+            .spring(response: 0.5, dampingFraction: 0.75).delay(Double(index) * 0.1 + 0.8),
+            value: transactionsAppeared
+        )
     }
-    
-    private func serviceRow(icon: String, title: String, time: String, price: String) -> some View {
-        HStack(spacing: 14) {
-            Image(systemName: icon).font(.system(size: 16, weight: .medium)).foregroundColor(.memberDark)
-                .frame(width: 36, height: 36).background(RoundedRectangle(cornerRadius: 10).fill(Color(red: 0.95, green: 0.95, blue: 0.96)))
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(.system(size: 14, weight: .medium)).foregroundColor(.black)
-                Text(time).font(.system(size: 12)).foregroundColor(Color(white: 0.50))
-            }
-            Spacer()
-            Text(price).font(.system(size: 14, weight: .bold)).foregroundColor(price == "Free" ? Color(red: 0.20, green: 0.72, blue: 0.45) : .black)
+
+    // MARK: - Helpers
+    private func productIcon(for category: String) -> String {
+        switch category.lowercased() {
+        case "shoes":       return "shoe.fill"
+        case "apparel":     return "tshirt.fill"
+        case "accessories": return "scarf.fill"
+        default:            return "bag.fill"
         }
-        .padding(.horizontal, 16).padding(.vertical, 13)
     }
-    
-    private var serviceDivider: some View {
-        Rectangle().fill(Color.gray.opacity(0.10)).frame(height: 1).padding(.leading, 66).padding(.trailing, 16)
+
+    private func triggerAnimations() {
+        // Stagger the animations
+        withAnimation { cardAppeared = true }
+        withAnimation { menuAppeared = true }
+        withAnimation { transactionsAppeared = true }
+
+        // Continuous shimmer loop
+        startShimmer()
+    }
+
+    private func startShimmer() {
+        withAnimation(
+            .easeInOut(duration: 2.5)
+            .repeatForever(autoreverses: false)
+            .delay(1.0)
+        ) {
+            shimmerOffset = 250
+        }
     }
 }
 
-// MARK: - Previews
-#Preview("Intro") { MembershipView() }
-#Preview("Dashboard") { NavigationStack { MembershipDashboardView(isMember: .constant(true)) } }
-#Preview("Sheet") { PricingSheetView(isMember: .constant(false)) }
+// MARK: - Preview
+#Preview {
+    MembershipView()
+}
