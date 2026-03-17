@@ -12,12 +12,19 @@ extension Color {
 
 // MARK: - Data Models
 struct Product: Identifiable {
-    let id = UUID()
+    let id: String // Changed to String for stable IDs
     let name: String
     let price: String
     let imageName: String
     let description: String
-    var isFavorite: Bool = false
+    
+    init(id: String? = nil, name: String, price: String, imageName: String, description: String) {
+        self.id = id ?? UUID().uuidString
+        self.name = name
+        self.price = price
+        self.imageName = imageName
+        self.description = description
+    }
 }
 
 struct Category: Identifiable {
@@ -34,19 +41,20 @@ struct SizeVariant: Identifiable {
 
 // MARK: - Main Home View
 struct StoreMHomeView: View {
-    @State private var searchText = ""
+    @StateObject private var favoritesManager = FavoritesManager.shared
     @State private var selectedCategory = "All"
     @State private var previewProduct: Product? = nil
     @State private var showPreview = false
     @State private var navigateToDetail = false
     @State private var showNotifications = false
+    @State private var selectedProduct: Product? = nil
     @State private var products: [Product] = [
-        Product(name: "Classic T-Shirt", price: "$29.99", imageName: "tshirt", description: "A timeless wardrobe essential. Soft cotton fabric with a relaxed fit for all-day comfort."),
-        Product(name: "Denim Jacket", price: "$89.99", imageName: "jacket", description: "Rugged yet refined. Premium denim with a modern cut that pairs with everything."),
-        Product(name: "Summer Dress", price: "$59.99", imageName: "dress", description: "Light and breezy. Perfect for warm days with its flowy silhouette and vibrant print."),
-        Product(name: "Running Shoes", price: "$119.99", imageName: "shoes", description: "Engineered for performance. Responsive cushioning with breathable mesh upper."),
-        Product(name: "Casual Pants", price: "$49.99", imageName: "pants", description: "Versatile and comfortable. Stretch fabric that moves with you from day to night."),
-        Product(name: "Wool Scarf", price: "$34.99", imageName: "scarf", description: "Luxuriously soft merino wool. Adds warmth and style to any cold-weather outfit."),
+        Product(id: "tshirt", name: "Classic T-Shirt", price: "$29.99", imageName: "tshirt", description: "A timeless wardrobe essential. Soft cotton fabric with a relaxed fit for all-day comfort."),
+        Product(id: "jacket", name: "Denim Jacket", price: "$89.99", imageName: "jacket", description: "Rugged yet refined. Premium denim with a modern cut that pairs with everything."),
+        Product(id: "dress", name: "Summer Dress", price: "$59.99", imageName: "dress", description: "Light and breezy. Perfect for warm days with its flowy silhouette and vibrant print."),
+        Product(id: "shoes", name: "Running Shoes", price: "$119.99", imageName: "shoes", description: "Engineered for performance. Responsive cushioning with breathable mesh upper."),
+        Product(id: "pants", name: "Casual Pants", price: "$49.99", imageName: "pants", description: "Versatile and comfortable. Stretch fabric that moves with you from day to night."),
+        Product(id: "scarf", name: "Wool Scarf", price: "$34.99", imageName: "scarf", description: "Luxuriously soft merino wool. Adds warmth and style to any cold-weather outfit."),
     ]
 
     let categories: [Category] = [
@@ -65,7 +73,6 @@ struct StoreMHomeView: View {
                 ScrollView(.vertical, showsIndicators: false) {
                     VStack(spacing: 0) {
                         greetingSection
-                        searchBarSection
                         bannerSection
                         categoriesSection
                         popularProductsSection
@@ -76,7 +83,9 @@ struct StoreMHomeView: View {
                 .navigationTitle("Store.M")
                 .navigationBarTitleDisplayMode(.large)
                 .navigationDestination(isPresented: $navigateToDetail) {
-                    ProductDetailsView()
+                    if let product = selectedProduct {
+                        ProductDetailsView(productId: product.id, productName: product.name)
+                    }
                 }
                 .navigationDestination(isPresented: $showNotifications) {
                     NotificationsView()
@@ -240,38 +249,7 @@ struct StoreMHomeView: View {
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 16)
-    }
-
-    // MARK: - Search Bar
-    private var searchBarSection: some View {
-        HStack(spacing: 12) {
-            HStack(spacing: 10) {
-                Image(systemName: "magnifyingglass")
-                    .font(.system(size: 20, weight: .medium))
-                    .foregroundColor(.storeTextSecondary)
-
-                TextField("Search for products...", text: $searchText)
-                    .font(.system(size: 15))
-                    .foregroundColor(.storeTextPrimary)
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 14)
-            .background(Color.white)
-            .cornerRadius(44)
-            .shadow(color: .black.opacity(0.03), radius: 10, x: 0, y: 2)
-
-            Circle()
-                .fill(Color.white)
-                .frame(width: 48, height: 48)
-                .shadow(color: .black.opacity(0.04), radius: 8, x: 0, y: 2)
-                .overlay(
-                    Image(systemName: "slider.horizontal.3")
-                        .font(.system(size: 16, weight: .medium))
-                        .foregroundColor(.storeTextPrimary)
-                )
-        }
-        .padding(.horizontal, 20)
-        .padding(.bottom, 20)
+        .padding(.bottom, 4)
     }
 
     // MARK: - Promotional Banner
@@ -389,8 +367,9 @@ struct StoreMHomeView: View {
             ]
 
             LazyVGrid(columns: columns, spacing: 14) {
-                ForEach($products) { $product in
-                    ProductCard(product: $product, onTap: {
+                ForEach(products) { product in
+                    ProductCard(product: product, onTap: {
+                        selectedProduct = product
                         navigateToDetail = true
                     }, onLongPress: {
                         previewProduct = product
@@ -518,7 +497,8 @@ struct ProductCardShape: Shape {
 
 // MARK: - Product Card
 struct ProductCard: View {
-    @Binding var product: Product
+    @StateObject private var favoritesManager = FavoritesManager.shared
+    let product: Product
     var onTap: () -> Void
     var onLongPress: () -> Void
     
@@ -581,11 +561,11 @@ struct ProductCard: View {
 
     private var heartButton: some View {
         Button {
-            product.isFavorite.toggle()
+            favoritesManager.toggleFavorite(productId: product.id)
         } label: {
-            Image(systemName: product.isFavorite ? "heart.fill" : "heart")
+            Image(systemName: favoritesManager.isFavorite(productId: product.id) ? "heart.fill" : "heart")
                 .font(.system(size: 14, weight: .medium))
-                .foregroundColor(product.isFavorite ? .red : .gray)
+                .foregroundColor(favoritesManager.isFavorite(productId: product.id) ? .red : .gray)
                 .frame(width: 36, height: 36)
                 .background(Color.white)
                 .clipShape(Circle())

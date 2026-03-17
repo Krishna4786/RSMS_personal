@@ -5,8 +5,6 @@ struct WishlistItem: Identifiable {
     let id = UUID()
     let name: String
     let price: String
-    let rating: Double
-    let reviews: Int
     let imageName: String
     var isFavorite: Bool = true
 }
@@ -15,12 +13,12 @@ struct WishlistItem: Identifiable {
 struct WishlistView: View {
     @State private var searchText = ""
     @State private var wishlistItems: [WishlistItem] = [
-        WishlistItem(name: "Dries Van Noten", price: "$580", rating: 4.8, reviews: 235, imageName: "wishlist1"),
-        WishlistItem(name: "Wales Bonner", price: "$280", rating: 4.5, reviews: 163, imageName: "wishlist2"),
-        WishlistItem(name: "Button Blazer", price: "$1745", rating: 4.9, reviews: 235, imageName: "wishlist3"),
-        WishlistItem(name: "Still Kelly", price: "$330", rating: 4.7, reviews: 163, imageName: "wishlist4"),
-        WishlistItem(name: "Dries Van Noten", price: "$580", rating: 4.8, reviews: 235, imageName: "wishlist5"),
-        WishlistItem(name: "Wales Bonner", price: "$280", rating: 4.5, reviews: 163, imageName: "wishlist6")
+        WishlistItem(name: "Dries Van Noten", price: "$580", imageName: "wishlist1"),
+        WishlistItem(name: "Wales Bonner", price: "$280", imageName: "wishlist2"),
+        WishlistItem(name: "Button Blazer", price: "$1745", imageName: "wishlist3"),
+        WishlistItem(name: "Still Kelly", price: "$330", imageName: "wishlist4"),
+        WishlistItem(name: "Dries Van Noten", price: "$580", imageName: "wishlist5"),
+        WishlistItem(name: "Wales Bonner", price: "$280", imageName: "wishlist6")
     ]
     
     private let columns = [
@@ -118,9 +116,9 @@ struct WishlistCard: View {
     
     var body: some View {
         NavigationLink(destination: ProductDetailsView()) {
-            VStack(alignment: .leading, spacing: 10) {
-                // Image container with cutout shape
-                Color.gray.opacity(0.10)
+            VStack(alignment: .leading, spacing: 12) {
+                // IMAGE CONTAINER
+                Color.gray.opacity(0.12)
                     .frame(height: 170)
                     .overlay(
                         Image(item.imageName)
@@ -130,33 +128,12 @@ struct WishlistCard: View {
                     )
                     .clipShape(ProductCardShape())
                 
-                // Name
-                Text(item.name)
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(.storeTextPrimary)
-                    .lineLimit(1)
-                    .padding(.horizontal, 4)
-                
-                // Rating + Price row
-                HStack(spacing: 0) {
-                    // Rating
-                    HStack(spacing: 3) {
-                        Image(systemName: "star.fill")
-                            .font(.system(size: 10))
-                            .foregroundColor(Color.storePrimary)
-                        
-                        Text("\(String(format: "%.1f", item.rating))")
-                            .font(.system(size: 12, weight: .medium))
-                            .foregroundColor(.storeTextSecondary)
-                        
-                        Text("(\(item.reviews))")
-                            .font(.system(size: 12))
-                            .foregroundColor(.storeTextSecondary)
-                    }
+                // PRODUCT INFO
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(item.name)
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(.storeTextPrimary)
                     
-                    Spacer()
-                    
-                    // Price
                     Text(item.price)
                         .font(.system(size: 18, weight: .bold))
                         .foregroundColor(.storeTextPrimary)
@@ -174,7 +151,6 @@ struct WishlistCard: View {
                     .stroke(Color(white: 0.90), lineWidth: 1.0)
             )
             .overlay(
-                // Heart button in cutout area
                 heartButton,
                 alignment: .topTrailing
             )
@@ -186,9 +162,9 @@ struct WishlistCard: View {
         Button {
             onRemove()
         } label: {
-            Image(systemName: "heart.fill")
+            Image(systemName: item.isFavorite ? "heart.fill" : "heart")
                 .font(.system(size: 14, weight: .medium))
-                .foregroundColor(.red)
+                .foregroundColor(item.isFavorite ? .red : .gray)
                 .frame(width: 36, height: 36)
                 .background(Color.white)
                 .clipShape(Circle())
