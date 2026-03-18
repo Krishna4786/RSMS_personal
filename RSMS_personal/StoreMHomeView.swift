@@ -1,4 +1,6 @@
 import SwiftUI
+internal import Combine
+
 
 // MARK: - Color Theme
 extension Color {
@@ -25,11 +27,29 @@ struct Category: Identifiable {
     let name: String
 }
 
-// MARK: - Size variant for preview
 struct SizeVariant: Identifiable {
     let id = UUID()
     let label: String
     let price: String
+}
+
+// MARK: - Banner Slide Model
+struct BannerSlide: Identifiable {
+    let id = UUID()
+    let badge: String
+    let headline: String
+    let subtitle: String
+    let buttonText: String
+    let bgColor: Color
+    let accentColor: Color
+    let imageName: String
+}
+
+// MARK: - Category Card Model
+struct CategoryCard: Identifiable {
+    let id = UUID()
+    let name: String
+    let icon: String
 }
 
 // MARK: - Main Home View
@@ -41,6 +61,7 @@ struct StoreMHomeView: View {
     @State private var selectedProduct: Product? = nil
     @State private var navigateToDetail = false
     @State private var showNotifications = false
+    @State private var currentBannerIndex = 0
     @State private var products: [Product] = [
         Product(name: "Classic T-Shirt", price: "$29.99", imageName: "tshirt", description: "A timeless wardrobe essential. Soft cotton fabric with a relaxed fit for all-day comfort."),
         Product(name: "Denim Jacket", price: "$89.99", imageName: "jacket", description: "Rugged yet refined. Premium denim with a modern cut that pairs with everything."),
@@ -59,10 +80,51 @@ struct StoreMHomeView: View {
         Category(name: "Shoes"),
     ]
 
+    private let bannerSlides: [BannerSlide] = [
+        BannerSlide(
+            badge: "Limited Offer",
+            headline: "First Purchase Enjoy\na Special Offer",
+            subtitle: "Up to 40% off on selected items",
+            buttonText: "Shop Now",
+            bgColor: Color(red: 0.95, green: 0.75, blue: 0.25),
+            accentColor: Color(red: 0.12, green: 0.12, blue: 0.14),
+            imageName: "bag.fill"
+        ),
+        BannerSlide(
+            badge: "New Season",
+            headline: "Summer Collection\nJust Arrived",
+            subtitle: "Fresh styles for warm days ahead",
+            buttonText: "Explore",
+            bgColor: Color(red: 0.85, green: 0.92, blue: 0.78),
+            accentColor: Color(red: 0.12, green: 0.12, blue: 0.14),
+            imageName: "sun.max.fill"
+        ),
+        BannerSlide(
+            badge: "Members Only",
+            headline: "Exclusive Access\nto Premium Picks",
+            subtitle: "Join membership for early drops",
+            buttonText: "Join Now",
+            bgColor: Color(red: 0.82, green: 0.85, blue: 0.95),
+            accentColor: Color(red: 0.12, green: 0.12, blue: 0.14),
+            imageName: "crown.fill"
+        ),
+    ]
+
+    private let categoryCards: [CategoryCard] = [
+        CategoryCard(name: "Men's\nOutfit", icon: "figure.stand"),
+        CategoryCard(name: "Women's\nOutfit", icon: "figure.stand.dress"),
+        CategoryCard(name: "Men's\nFootwear", icon: "shoe.fill"),
+        CategoryCard(name: "Women's\nFootwear", icon: "shoe.2.fill"),
+        CategoryCard(name: "Kids\nWear", icon: "figure.child"),
+        CategoryCard(name: "Accessories", icon: "bag.fill"),
+    ]
+
+    // Auto-scroll timer
+    let bannerTimer = Timer.publish(every: 4, on: .main, in: .common).autoconnect()
+
     var body: some View {
         NavigationStack {
             ZStack {
-                // Main content
                 ScrollView(.vertical, showsIndicators: false) {
                     VStack(spacing: 0) {
                         greetingSection
@@ -96,7 +158,7 @@ struct StoreMHomeView: View {
                         }
                     }
                 }
-                
+
                 // Long-press preview overlay
                 if showPreview, let product = previewProduct {
                     productPreviewOverlay(product: product)
@@ -105,11 +167,10 @@ struct StoreMHomeView: View {
             }
         }
     }
-    
+
     // MARK: - Preview Overlay
     private func productPreviewOverlay(product: Product) -> some View {
         ZStack {
-            // Blurred background
             Color.black.opacity(0.4)
                 .ignoresSafeArea()
                 .background(.ultraThinMaterial)
@@ -120,10 +181,8 @@ struct StoreMHomeView: View {
                         previewProduct = nil
                     }
                 }
-            
-            // Preview card
+
             VStack(alignment: .leading, spacing: 0) {
-                // Product image
                 ZStack(alignment: .topTrailing) {
                     RoundedRectangle(cornerRadius: 16, style: .continuous)
                         .fill(Color(red: 0.95, green: 0.95, blue: 0.96))
@@ -134,8 +193,7 @@ struct StoreMHomeView: View {
                                 .scaledToFit()
                                 .padding(30)
                         )
-                    
-                    // AR / 3D icon
+
                     Button(action: {}) {
                         Image(systemName: "cube.transparent")
                             .font(.system(size: 16, weight: .medium))
@@ -146,22 +204,20 @@ struct StoreMHomeView: View {
                     }
                     .padding(12)
                 }
-                
-                // Product info
+
                 VStack(alignment: .leading, spacing: 8) {
                     Text(product.name)
                         .font(.system(size: 20, weight: .bold))
                         .foregroundColor(.storeTextPrimary)
-                    
+
                     Text(product.description)
                         .font(.system(size: 13))
                         .foregroundColor(.storeTextSecondary)
                         .lineSpacing(3)
                         .fixedSize(horizontal: false, vertical: true)
-                    
+
                     Spacer().frame(height: 4)
-                    
-                    // Size/price variants
+
                     HStack(spacing: 0) {
                         let variants = sizeVariants(for: product)
                         ForEach(Array(variants.enumerated()), id: \.element.id) { index, variant in
@@ -174,7 +230,7 @@ struct StoreMHomeView: View {
                                     .foregroundColor(.storeTextSecondary)
                             }
                             .frame(maxWidth: .infinity)
-                            
+
                             if index < variants.count - 1 {
                                 Rectangle()
                                     .fill(Color.gray.opacity(0.15))
@@ -198,9 +254,8 @@ struct StoreMHomeView: View {
             .animation(.spring(response: 0.35, dampingFraction: 0.8), value: showPreview)
         }
     }
-    
+
     private func sizeVariants(for product: Product) -> [SizeVariant] {
-        // Generate 3 size variants from the product price
         let basePrice = Double(product.price.replacingOccurrences(of: "$", with: "")) ?? 29.99
         return [
             SizeVariant(label: "S", price: String(format: "$%.2f", basePrice * 0.8)),
@@ -209,7 +264,7 @@ struct StoreMHomeView: View {
         ]
     }
 
-    // MARK: - Greeting
+    // MARK: - Greeting (unchanged)
     private var greetingSection: some View {
         HStack(spacing: 12) {
             Circle()
@@ -243,65 +298,129 @@ struct StoreMHomeView: View {
         .padding(.bottom, 4)
     }
 
-    // MARK: - Promotional Banner
+    // MARK: - Banner Section (REDESIGNED)
     private var bannerSection: some View {
-        ZStack(alignment: .bottomLeading) {
-            RoundedRectangle(cornerRadius: 20)
-                .fill(
-                    LinearGradient(
-                        colors: [Color.storeBanner, Color.storeBanner.opacity(0.7)],
-                        startPoint: .leading,
-                        endPoint: .trailing
-                    )
-                )
-                .frame(height: 170)
-
-            HStack(alignment: .bottom) {
-                VStack(alignment: .leading, spacing: 8) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        RoundedRectangle(cornerRadius: 2)
-                            .fill(Color.white.opacity(0.8))
-                            .frame(width: 140, height: 6)
-                        RoundedRectangle(cornerRadius: 2)
-                            .fill(Color.white.opacity(0.6))
-                            .frame(width: 120, height: 6)
-                        RoundedRectangle(cornerRadius: 2)
-                            .fill(Color.white.opacity(0.5))
-                            .frame(width: 100, height: 6)
-                        RoundedRectangle(cornerRadius: 2)
-                            .fill(Color.white.opacity(0.4))
-                            .frame(width: 80, height: 6)
-                    }
-                    .padding(.bottom, 8)
-
-                    Button(action: {}) {
-                        Text("Shop Now")
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundColor(.storeTextPrimary)
-                            .padding(.horizontal, 22)
-                            .padding(.vertical, 12)
-                            .background(Color.white)
-                            .cornerRadius(24)
-                            .shadow(color: .black.opacity(0.06), radius: 6, x: 0, y: 3)
-                    }
+        VStack(spacing: 12) {
+            TabView(selection: $currentBannerIndex) {
+                ForEach(Array(bannerSlides.enumerated()), id: \.element.id) { index, slide in
+                    bannerCard(slide: slide)
+                        .tag(index)
                 }
-                .padding(.leading, 24)
-                .padding(.bottom, 20)
+            }
+            .tabViewStyle(.page(indexDisplayMode: .never))
+            .frame(height: 200)
+            .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+            .padding(.horizontal, 20)
+            .onReceive(bannerTimer) { _ in
+                withAnimation(.easeInOut(duration: 0.5)) {
+                    currentBannerIndex = (currentBannerIndex + 1) % bannerSlides.count
+                }
+            }
 
-                Spacer()
-
-                RoundedRectangle(cornerRadius: 14)
-                    .fill(Color.white.opacity(0.35))
-                    .frame(width: 130, height: 130)
-                    .padding(.trailing, 16)
-                    .padding(.bottom, 16)
+            // Page indicator dots
+            HStack(spacing: 6) {
+                ForEach(0..<bannerSlides.count, id: \.self) { index in
+                    Capsule()
+                        .fill(index == currentBannerIndex ? Color.storePrimary : Color.gray.opacity(0.25))
+                        .frame(width: index == currentBannerIndex ? 22 : 7, height: 7)
+                        .animation(.spring(response: 0.35, dampingFraction: 0.7), value: currentBannerIndex)
+                }
             }
         }
-        .padding(.horizontal, 20)
         .padding(.bottom, 24)
     }
 
-    // MARK: - Categories
+    private func bannerCard(slide: BannerSlide) -> some View {
+        GeometryReader { geo in
+            let cardWidth = geo.size.width
+            let leftWidth = cardWidth * 0.58
+
+            ZStack(alignment: .leading) {
+                // Background
+                RoundedRectangle(cornerRadius: 22, style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            colors: [slide.bgColor, slide.bgColor.opacity(0.8)],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+
+                // Right side image area — positioned absolutely
+                HStack {
+                    Spacer()
+
+                    ZStack {
+                        // Soft glow behind the image
+                        Circle()
+                            .fill(Color.white.opacity(0.18))
+                            .frame(width: 120, height: 120)
+
+                        // Product image placeholder
+                        Image(systemName: slide.imageName)
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 80, height: 80)
+                            .foregroundColor(slide.accentColor.opacity(0.18))
+                    }
+                    .frame(width: cardWidth - leftWidth - 10)
+                    .padding(.trailing, 8)
+                }
+
+                // Left text content — constrained width
+                VStack(alignment: .leading, spacing: 8) {
+                    // Badge
+                    Text(slide.badge)
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 5)
+                        .background(
+                            Capsule()
+                                .fill(slide.accentColor)
+                        )
+
+                    // Headline
+                    Text(slide.headline)
+                        .font(.system(size: 20, weight: .bold))
+                        .foregroundColor(slide.accentColor)
+                        .lineSpacing(2)
+                        .lineLimit(3)
+
+                    Spacer(minLength: 4)
+
+                    // CTA Button
+                    Button(action: {}) {
+                        HStack(spacing: 8) {
+                            Text(slide.buttonText)
+                                .font(.system(size: 13, weight: .bold))
+
+                            Image(systemName: "arrow.up.right")
+                                .font(.system(size: 11, weight: .bold))
+                                .frame(width: 24, height: 24)
+                                .background(
+                                    Circle()
+                                        .fill(slide.bgColor.opacity(0.5))
+                                )
+                        }
+                        .foregroundColor(.white)
+                        .padding(.leading, 16)
+                        .padding(.trailing, 5)
+                        .padding(.vertical, 7)
+                        .background(
+                            Capsule()
+                                .fill(slide.accentColor)
+                        )
+                    }
+                }
+                .frame(width: leftWidth, alignment: .leading)
+                .padding(.leading, 20)
+                .padding(.vertical, 16)
+            }
+        }
+    }
+
+    // MARK: - Categories Section (REDESIGNED)
     private var categoriesSection: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack {
@@ -310,8 +429,8 @@ struct StoreMHomeView: View {
                     .foregroundColor(.storeTextPrimary)
                 Spacer()
                 Button(action: {}) {
-                    Text("See All")
-                        .font(.system(size: 14, weight: .medium))
+                    Text("See all")
+                        .font(.system(size: 14, weight: .semibold))
                         .foregroundColor(.storeTextSecondary)
                 }
             }
@@ -319,15 +438,8 @@ struct StoreMHomeView: View {
 
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 10) {
-                    ForEach(categories) { category in
-                        CategoryChip(
-                            title: category.name,
-                            isSelected: selectedCategory == category.name
-                        ) {
-                            withAnimation(.easeInOut(duration: 0.2)) {
-                                selectedCategory = category.name
-                            }
-                        }
+                    ForEach(categoryCards) { card in
+                        categoryCardView(card: card)
                     }
                 }
                 .padding(.horizontal, 20)
@@ -336,7 +448,47 @@ struct StoreMHomeView: View {
         .padding(.bottom, 24)
     }
 
-    // MARK: - Popular Products
+    private func categoryCardView(card: CategoryCard) -> some View {
+        Button {
+            // Navigate to category
+        } label: {
+            HStack(spacing: 10) {
+                // Category text
+                Text(card.name)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(.storeTextPrimary)
+                    .multilineTextAlignment(.leading)
+                    .lineSpacing(2)
+                    .fixedSize(horizontal: true, vertical: false)
+
+                // Icon placeholder (replace with images in production)
+                ZStack {
+                    Circle()
+                        .fill(Color.storePrimary.opacity(0.12))
+                        .frame(width: 44, height: 44)
+
+                    Image(systemName: card.icon)
+                        .font(.system(size: 18, weight: .medium))
+                        .foregroundColor(.storePrimary)
+                }
+            }
+            .padding(.leading, 14)
+            .padding(.trailing, 8)
+            .padding(.vertical, 10)
+            .background(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(.white)
+                    .shadow(color: .black.opacity(0.04), radius: 6, y: 3)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .stroke(Color(white: 0.92), lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - Popular Products (unchanged)
     private var popularProductsSection: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack {
@@ -375,7 +527,7 @@ struct StoreMHomeView: View {
     }
 }
 
-// MARK: - Category Chip
+// MARK: - Category Chip (kept for backwards compatibility if needed elsewhere)
 struct CategoryChip: View {
     let title: String
     let isSelected: Bool
@@ -411,7 +563,7 @@ struct ProductCardShape: Shape {
     var cutoutRadius: CGFloat = 24
     var filletRadius: CGFloat = 10
     var cutoutOffset: CGFloat = 18
-    
+
     func path(in rect: CGRect) -> Path {
         var path = Path()
         let w = rect.width
@@ -420,31 +572,31 @@ struct ProductCardShape: Shape {
         let R = cutoutRadius
         let r = filletRadius
         let P = cutoutOffset
-        
+
         let cx = w - P
         let cy = P
-        
+
         let Rr = R + r
         let Pr = P - r
         let val = (Rr * Rr) - (Pr * Pr)
         let X = val > 0 ? sqrt(val) : 0
-        
+
         let xc_top = cx - X
         let yc_top = r
-        
+
         let xc_right = w - r
         let yc_right = cy + X
-        
+
         path.move(to: CGPoint(x: cr, y: 0))
         path.addLine(to: CGPoint(x: xc_top, y: 0))
-        
+
         let a1 = Angle.radians(atan2(Double(cy - yc_top), Double(cx - xc_top)))
         path.addArc(center: CGPoint(x: xc_top, y: yc_top),
                     radius: r,
                     startAngle: .degrees(-90),
                     endAngle: a1,
                     clockwise: false)
-                    
+
         let a2 = Angle.radians(atan2(Double(yc_top - cy), Double(xc_top - cx)))
         let a3 = Angle.radians(atan2(Double(yc_right - cy), Double(xc_right - cx)))
         path.addArc(center: CGPoint(x: cx, y: cy),
@@ -452,35 +604,35 @@ struct ProductCardShape: Shape {
                     startAngle: a2,
                     endAngle: a3,
                     clockwise: true)
-                    
+
         let a4 = Angle.radians(atan2(Double(cy - yc_right), Double(cx - xc_right)))
         path.addArc(center: CGPoint(x: xc_right, y: yc_right),
                     radius: r,
                     startAngle: a4,
                     endAngle: .degrees(0),
                     clockwise: false)
-        
+
         path.addLine(to: CGPoint(x: w, y: h - cr))
         path.addArc(center: CGPoint(x: w - cr, y: h - cr),
                     radius: cr,
                     startAngle: .degrees(0),
                     endAngle: .degrees(90),
                     clockwise: false)
-        
+
         path.addLine(to: CGPoint(x: cr, y: h))
         path.addArc(center: CGPoint(x: cr, y: h - cr),
                     radius: cr,
                     startAngle: .degrees(90),
                     endAngle: .degrees(180),
                     clockwise: false)
-        
+
         path.addLine(to: CGPoint(x: 0, y: cr))
         path.addArc(center: CGPoint(x: cr, y: cr),
                     radius: cr,
                     startAngle: .degrees(180),
                     endAngle: .degrees(270),
                     clockwise: false)
-        
+
         path.closeSubpath()
         return path
     }
@@ -492,13 +644,11 @@ struct ProductCard: View {
     @Binding var product: Product
     var onTap: () -> Void
     var onLongPress: () -> Void
-    
+
     @State private var isLongPressing = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-
-            // IMAGE CONTAINER
             Color.gray.opacity(0.12)
                 .frame(height: 170)
                 .overlay(
@@ -509,7 +659,6 @@ struct ProductCard: View {
                 )
                 .clipShape(ProductCardShape())
 
-            // PRODUCT INFO
             VStack(alignment: .leading, spacing: 4) {
                 Text(product.name)
                     .font(.system(size: 14, weight: .medium))
@@ -536,7 +685,6 @@ struct ProductCard: View {
             alignment: .topTrailing
         )
         .onTapGesture {
-            // Only navigate on quick tap, not after long press
             if !isLongPressing {
                 onTap()
             }
@@ -556,8 +704,7 @@ struct ProductCard: View {
                 wishlistManager.toggleFavorite(product)
                 product.isFavorite = wishlistManager.isFavorite(product)
             }
-            
-            // Haptic feedback
+
             let impactFeedback = UIImpactFeedbackGenerator(style: .light)
             impactFeedback.impactOccurred()
         } label: {
