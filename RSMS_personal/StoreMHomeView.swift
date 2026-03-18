@@ -340,7 +340,7 @@ struct StoreMHomeView: View {
     private var popularProductsSection: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack {
-                Text("Popular Products")
+                Text("New Arrivals")
                     .font(.system(size: 18, weight: .bold))
                     .foregroundColor(.storeTextPrimary)
                 Spacer()
