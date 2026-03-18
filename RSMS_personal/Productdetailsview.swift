@@ -19,7 +19,6 @@ struct ProductItem: Identifiable {
     let name: String
     let price: String
     let desc: String
-    /// Optional USDZ filename (without extension) bundled in the app
     let usdzName: String?
 }
 
@@ -29,21 +28,14 @@ struct ProductDetailsView: View {
     @StateObject private var cartManager = CartManager.shared
     @StateObject private var wishlistManager = WishlistManager.shared
     
-    // Accept the product from the previous view
     var product: Product?
 
     @State private var selectedColorIndex  = 0
     @State private var selectedSizeIndex   = 1
     @State private var currentProductIndex = 0
-
-    // Flip state (chevron arrows → 180° flip each tap)
     @State private var flipDegrees: Double = 0
     @State private var isFlipping = false
-
-    // 360 / SceneKit orbit mode
     @State private var is360Mode = false
-    
-    // For capturing button frame for animation
     @State private var addToCartButtonFrame: CGRect = .zero
 
     private let colors: [ProductColor] = [
@@ -61,13 +53,12 @@ struct ProductDetailsView: View {
         ProductSize(label: "XXL", isAvailable: false)
     ]
 
-    /// Add your USDZ filenames (without extension) to usdzName; nil falls back to SF Symbol.
     private let products: [ProductItem] = [
         ProductItem(sfSymbol: "tshirt.fill",
                     name: "Classic T-Shirt",
                     price: "$29.99",
                     desc: "Experience the perfect blend of comfort and style. Crafted with premium materials, this piece is designed to seamlessly integrate into your everyday wardrobe...",
-                    usdzName: "t_shirt"),       // ← replace with your actual USDZ filename, or set nil
+                    usdzName: "t_shirt"),
         ProductItem(sfSymbol: "shoe.fill",
                     name: "Running Shoes",
                     price: "$119.99",
@@ -85,21 +76,26 @@ struct ProductDetailsView: View {
         ZStack {
             Color(uiColor: .systemGroupedBackground).ignoresSafeArea()
 
-            ScrollView(.vertical, showsIndicators: false) {
-                VStack(spacing: 0) {
-                    productInteractiveArea
-                    thumbnailRow
-                        .padding(.top, 12)
-                        .padding(.bottom, 16)
-                    productInfoCard
+            VStack(spacing: 0) {
+                // Scrollable content
+                ScrollView(.vertical, showsIndicators: false) {
+                    VStack(spacing: 0) {
+                        productInteractiveArea
+                        // Thumbnail row removed
+                        productInfoCard
+                            .padding(.top, 16)
+                    }
                 }
+
+                // MARK: - Fixed Bottom Add to Cart Bar
+                bottomCartBar
             }
-            
-            // Add to cart animation overlay
+
             AddToCartAnimationOverlay()
         }
         .navigationTitle("Product Details")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbarVisibility(.hidden, for: .tabBar)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 NavigationLink(destination: MyCartView()) {
@@ -125,6 +121,69 @@ struct ProductDetailsView: View {
         }
     }
 
+    // MARK: - Fixed Bottom Cart Bar
+    private var bottomCartBar: some View {
+        VStack(spacing: 0) {
+            Divider()
+
+            HStack(spacing: 16) {
+                // Price display
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Total Price")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundColor(.secondary)
+                    Text(products[currentProductIndex].price)
+                        .font(.system(size: 22, weight: .bold, design: .rounded))
+                        .foregroundColor(.primary)
+                }
+
+                GeometryReader { geo in
+                    Button(action: {
+                        UINotificationFeedbackGenerator().notificationOccurred(.success)
+
+                        let currentProduct = products[currentProductIndex]
+                        let selectedColor = colors[selectedColorIndex]
+                        let selectedSize = sizes[selectedSizeIndex]
+
+                        cartManager.addToCart(
+                            product: currentProduct,
+                            color: selectedColor,
+                            size: selectedSize,
+                            quantity: 1
+                        )
+
+                        addToCartButtonFrame = geo.frame(in: .global)
+                        cartManager.triggerAddToCartAnimation(from: addToCartButtonFrame)
+                    }) {
+                        HStack(spacing: 8) {
+                            Image(systemName: "cart.badge.plus")
+                                .font(.system(size: 16, weight: .semibold))
+                            Text("Add to Cart")
+                                .font(.system(size: 17, weight: .bold, design: .rounded))
+                        }
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 52)
+                        .background(
+                            Capsule()
+                                .fill(Color.primary)
+                        )
+                        .shadow(color: .black.opacity(0.12), radius: 8, y: 4)
+                    }
+                }
+                .frame(height: 52)
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 12)
+            .padding(.bottom, 2)
+            .background(
+                Rectangle()
+                    .fill(.ultraThinMaterial)
+                    .ignoresSafeArea(edges: .bottom)
+            )
+        }
+    }
+
     // MARK: - SceneKit Scene Builder
     private func buildScene(usdzName: String) -> SCNScene? {
         guard let url = Bundle.main.url(forResource: usdzName, withExtension: "usdz") else {
@@ -135,7 +194,6 @@ struct ProductDetailsView: View {
         scene.background.contents = UIColor.clear
         let root = scene.rootNode
 
-        // Auto-fit
         let (minV, maxV) = root.boundingBox
         let center = SCNVector3((minV.x + maxV.x) / 2,
                                 (minV.y + maxV.y) / 2,
@@ -149,7 +207,6 @@ struct ProductDetailsView: View {
         container.position = SCNVector3(-center.x * scale, -center.y * scale, -center.z * scale)
         root.addChildNode(container)
 
-        // Key light
         let keyNode  = SCNNode(); let key = SCNLight()
         key.type = .directional; key.intensity = 1800
         key.castsShadow = true; key.shadowMode = .deferred
@@ -158,12 +215,10 @@ struct ProductDetailsView: View {
         keyNode.eulerAngles = SCNVector3(-Float.pi / 4, Float.pi / 4, 0)
         root.addChildNode(keyNode)
 
-        // Ambient fill
         let ambNode  = SCNNode(); let amb = SCNLight()
         amb.type = .ambient; amb.intensity = 600
         ambNode.light = amb; root.addChildNode(ambNode)
 
-        // Camera
         let camNode = SCNNode(); let cam = SCNCamera()
         cam.fieldOfView = 60; camNode.camera = cam
         camNode.position = SCNVector3(0, 0, 2.0)
@@ -179,17 +234,13 @@ struct ProductDetailsView: View {
 
         return ZStack(alignment: .bottomTrailing) {
             VStack(spacing: 0) {
-
-                // ── Model Stage ──────────────────────────────────────────
                 ZStack {
-                    // Colour glow
                     Circle()
                         .fill(colors[selectedColorIndex].color.opacity(0.10))
                         .frame(width: 260, height: 260)
                         .blur(radius: 40)
 
                     if let scene = scene {
-                        // ── 3-D SceneKit model (with card flip applied) ──
                         ProductSceneView(scene: scene,
                                          allowsCameraControl: is360Mode)
                             .frame(maxWidth: .infinity)
@@ -197,12 +248,10 @@ struct ProductDetailsView: View {
                             .background(Color.clear)
                             .id(currentProductIndex)
                             .transition(.scale.combined(with: .opacity))
-                            // Apply the running flip angle so 3D model flips too
                             .rotation3DEffect(.degrees(flipDegrees),
                                               axis: (x: 0, y: 1, z: 0),
                                               perspective: 0.4)
                     } else {
-                        // ── SF Symbol fallback with flip ─────────────────
                         Image(systemName: product.sfSymbol)
                             .font(.system(size: 160, weight: .thin))
                             .foregroundStyle(
@@ -226,7 +275,6 @@ struct ProductDetailsView: View {
                     }
                 }
 
-                // Ground shadow
                 Ellipse()
                     .fill(
                         RadialGradient(colors: [Color.black.opacity(0.07), .clear],
@@ -235,10 +283,8 @@ struct ProductDetailsView: View {
                     .frame(width: 140, height: 10)
                     .padding(.top, 2)
 
-                // ── Controls row ─────────────────────────────────────────
                 ZStack {
                     if !is360Mode {
-                        // Left / Right arrows → each tap flips 180°
                         HStack(spacing: 0) {
                             Button(action: {
                                 UIImpactFeedbackGenerator(style: .light).impactOccurred()
@@ -281,7 +327,6 @@ struct ProductDetailsView: View {
                 .padding(.top, 10)
             }
 
-            // ── 3D / 360° toggle button (floating) ──────────────────────
             Button {
                 UIImpactFeedbackGenerator(style: .medium).impactOccurred()
                 withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
@@ -311,60 +356,14 @@ struct ProductDetailsView: View {
         .padding(.top, 16)
     }
 
-    // MARK: - Thumbnails
-    private var thumbnailRow: some View {
-        HStack(spacing: 16) {
-            ForEach(Array(products.enumerated()), id: \.element.id) { index, product in
-                Button {
-                    UISelectionFeedbackGenerator().selectionChanged()
-                    withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
-                        currentProductIndex = index
-                        flipDegrees = 0          // reset flip when switching product
-                    }
-                } label: {
-                    Image(systemName: product.sfSymbol)
-                        .font(.system(size: 20, weight: .light))
-                        .foregroundColor(
-                            currentProductIndex == index
-                            ? colors[selectedColorIndex].color
-                            : .secondary.opacity(0.6)
-                        )
-                        .frame(width: 56, height: 56)
-                        .background(
-                            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                .fill(Color(uiColor: .systemBackground))
-                                .shadow(color: .black.opacity(currentProductIndex == index ? 0.08 : 0.03),
-                                        radius: 6, y: 3)
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                .stroke(
-                                    currentProductIndex == index
-                                    ? colors[selectedColorIndex].color.opacity(0.5)
-                                    : Color.clear,
-                                    lineWidth: 1.5
-                                )
-                        )
-                        .scaleEffect(currentProductIndex == index ? 1.05 : 1.0)
-                }
-            }
-        }
-    }
-
-    // MARK: - Product Info Card
+    // MARK: - Product Info Card (Add to Cart button removed — it's now in the bottom bar)
     private var productInfoCard: some View {
         let product = products[currentProductIndex]
 
         return VStack(alignment: .leading, spacing: 0) {
-            HStack(alignment: .top) {
-                Text(product.name)
-                    .font(.system(size: 24, weight: .bold, design: .rounded))
-                    .foregroundColor(.primary)
-                Spacer()
-                Text(product.price)
-                    .font(.system(size: 22, weight: .black, design: .rounded))
-                    .foregroundColor(colors[selectedColorIndex].color)
-            }
+            Text(product.name)
+                .font(.system(size: 24, weight: .bold, design: .rounded))
+                .foregroundColor(.primary)
 
             Spacer().frame(height: 10)
 
@@ -378,49 +377,7 @@ struct ProductDetailsView: View {
             colorSelector
             Spacer().frame(height: 20)
             sizeSelector
-            Spacer().frame(height: 28)
-
-            Button(action: {
-                // Haptic feedback
-                UINotificationFeedbackGenerator().notificationOccurred(.success)
-                
-                // Get current product info
-                let currentProduct = products[currentProductIndex]
-                let selectedColor = colors[selectedColorIndex]
-                let selectedSize = sizes[selectedSizeIndex]
-                
-                // Add to cart
-                cartManager.addToCart(
-                    product: currentProduct,
-                    color: selectedColor,
-                    size: selectedSize,
-                    quantity: 1
-                )
-                
-                // Trigger animation from button position
-                cartManager.triggerAddToCartAnimation(from: addToCartButtonFrame)
-            }) {
-                GeometryReader { geo in
-                    Text("Add to Cart")
-                        .font(.system(size: 17, weight: .bold, design: .rounded))
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 56)
-                        .background(Color.primary)
-                        .clipShape(Capsule())
-                        .shadow(color: .black.opacity(0.15), radius: 10, y: 4)
-                        .onAppear {
-                            // Capture button frame in global coordinates
-                            DispatchQueue.main.async {
-                                addToCartButtonFrame = geo.frame(in: .global)
-                            }
-                        }
-                        .onChange(of: geo.frame(in: .global)) { oldValue, newValue in
-                            addToCartButtonFrame = newValue
-                        }
-                }
-            }
-            .frame(height: 56)
+            Spacer().frame(height: 16)
         }
         .padding(24)
         .background(
@@ -514,8 +471,6 @@ struct ProductDetailsView: View {
     }
 
     // MARK: - Flip Logic
-    /// Flips the model 180° in the given direction (+1 = right, -1 = left).
-    /// Successive taps keep accumulating so the model can spin freely.
     private func flipProduct(direction: Double) {
         guard !isFlipping else { return }
         isFlipping = true
