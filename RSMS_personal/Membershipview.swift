@@ -161,7 +161,11 @@ struct MembershipView: View {
     }
 
     private func sideMenuButton(item: SideMenuItem, index: Int) -> some View {
-        Button {
+        NavigationLink {
+            // Navigate to AppointmentBookingView if this is the "Appointments" button
+            if item.label == "Appointments" {
+                AppointmentBookingView()
+            }
         } label: {
             VStack(spacing: 6) {
                 ZStack {
@@ -183,6 +187,7 @@ struct MembershipView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
+        .disabled(item.label != "Appointments") // Only enable navigation for Appointments
         .buttonStyle(.plain)
         .offset(x: menuAppeared ? 0 : -60)
         .opacity(menuAppeared ? 1 : 0)
