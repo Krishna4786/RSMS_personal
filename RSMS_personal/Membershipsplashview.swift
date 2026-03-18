@@ -47,7 +47,8 @@ struct FloatingParticle: Identifiable {
 // MARK: - Membership Splash View
 struct MembershipSplashView: View {
 
-    @Environment(\.dismiss) private var dismiss
+    var onSubscribe: () -> Void
+
     @State private var selectedPlan: SubPlan = .yearly
 
     // Animation states
@@ -79,7 +80,6 @@ struct MembershipSplashView: View {
         ("bolt.fill", "Early Access", "Shop new drops before everyone"),
     ]
 
-    // Colors
     private let bgDark = Color(red: 0.06, green: 0.06, blue: 0.08)
     private let cardDark = Color(red: 0.10, green: 0.10, blue: 0.13)
     private let gold = Color(red: 0.90, green: 0.72, blue: 0.25)
@@ -88,14 +88,10 @@ struct MembershipSplashView: View {
 
     var body: some View {
         ZStack {
-            // MARK: - Background
             bgDark.ignoresSafeArea()
 
-            // Floating particles
-            particleField
-                .ignoresSafeArea()
+            particleField.ignoresSafeArea()
 
-            // Radial glow behind card
             RadialGradient(
                 colors: [gold.opacity(glowPulse * 0.12), .clear],
                 center: .init(x: 0.5, y: 0.28),
@@ -104,50 +100,26 @@ struct MembershipSplashView: View {
             )
             .ignoresSafeArea()
 
-            // Content
             ScrollView(.vertical, showsIndicators: false) {
                 VStack(spacing: 0) {
-                    // MARK: - Membership Card
                     membershipCard
-                        .padding(.top, 56)
+                        .padding(.top, 40)
 
-                    // MARK: - Benefits
                     benefitsList
                         .padding(.top, 36)
 
-                    // MARK: - Plan Selector
                     planSelector
                         .padding(.top, 32)
 
-                    // MARK: - CTA
                     ctaButton
                         .padding(.top, 32)
 
-                    // MARK: - Footer
                     footer
                         .padding(.top, 20)
                         .padding(.bottom, 50)
                 }
             }
-
-            // Close
-            VStack {
-                HStack {
-                    Spacer()
-                    Button { dismiss() } label: {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 13, weight: .bold))
-                            .foregroundColor(.white.opacity(0.5))
-                            .frame(width: 30, height: 30)
-                            .background(Circle().fill(.white.opacity(0.08)))
-                    }
-                    .padding(.trailing, 20)
-                    .padding(.top, 12)
-                }
-                Spacer()
-            }
         }
-        .preferredColorScheme(.dark)
         .onAppear { runAnimations() }
     }
 
@@ -178,7 +150,6 @@ struct MembershipSplashView: View {
     private var membershipCard: some View {
         VStack(spacing: 16) {
             ZStack {
-                // Card
                 RoundedRectangle(cornerRadius: 22, style: .continuous)
                     .fill(
                         LinearGradient(
@@ -193,7 +164,6 @@ struct MembershipSplashView: View {
                     )
                     .frame(width: 280, height: 175)
                     .overlay(
-                        // Shimmer sweep
                         RoundedRectangle(cornerRadius: 22, style: .continuous)
                             .fill(
                                 LinearGradient(
@@ -204,7 +174,6 @@ struct MembershipSplashView: View {
                             )
                     )
                     .overlay(
-                        // Card border glow
                         RoundedRectangle(cornerRadius: 22, style: .continuous)
                             .stroke(
                                 LinearGradient(
@@ -215,10 +184,7 @@ struct MembershipSplashView: View {
                                 lineWidth: 1
                             )
                     )
-                    .overlay(
-                        // Card content
-                        cardContent
-                    )
+                    .overlay(cardContent)
                     .rotation3DEffect(
                         .degrees(cardRotation),
                         axis: (x: 0.1, y: 1, z: 0),
@@ -228,7 +194,6 @@ struct MembershipSplashView: View {
                     .shadow(color: gold.opacity(0.15), radius: 30, y: 15)
             }
 
-            // Brand
             VStack(spacing: 6) {
                 Text("STORE.M")
                     .font(.system(size: 12, weight: .heavy))
@@ -257,9 +222,7 @@ struct MembershipSplashView: View {
                     .font(.system(size: 10, weight: .heavy))
                     .tracking(3)
                     .foregroundColor(gold.opacity(0.7))
-
                 Spacer()
-
                 Text("PREMIUM")
                     .font(.system(size: 9, weight: .bold))
                     .tracking(2)
@@ -267,37 +230,26 @@ struct MembershipSplashView: View {
                     .padding(.horizontal, 10)
                     .padding(.vertical, 3)
                     .background(
-                        Capsule()
-                            .fill(
-                                LinearGradient(
-                                    colors: [gold, goldLight],
-                                    startPoint: .leading,
-                                    endPoint: .trailing
-                                )
-                            )
+                        Capsule().fill(
+                            LinearGradient(colors: [gold, goldLight], startPoint: .leading, endPoint: .trailing)
+                        )
                     )
             }
 
             Spacer()
 
-            // Center logo
             HStack {
                 Spacer()
                 Image(systemName: "crown.fill")
                     .font(.system(size: 30, weight: .light))
                     .foregroundStyle(
-                        LinearGradient(
-                            colors: [gold, goldLight, gold],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
+                        LinearGradient(colors: [gold, goldLight, gold], startPoint: .topLeading, endPoint: .bottomTrailing)
                     )
                 Spacer()
             }
 
             Spacer()
 
-            // Bottom
             HStack(alignment: .bottom) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Krishna Aggarwal")
@@ -307,15 +259,10 @@ struct MembershipSplashView: View {
                         .font(.system(size: 10))
                         .foregroundColor(.white.opacity(0.3))
                 }
-
                 Spacer()
-
-                // Decorative dots
                 HStack(spacing: 3) {
                     ForEach(0..<4, id: \.self) { _ in
-                        Circle()
-                            .fill(gold.opacity(0.3))
-                            .frame(width: 4, height: 4)
+                        Circle().fill(gold.opacity(0.3)).frame(width: 4, height: 4)
                     }
                 }
             }
@@ -328,12 +275,8 @@ struct MembershipSplashView: View {
         VStack(spacing: 0) {
             ForEach(Array(benefits.enumerated()), id: \.offset) { index, b in
                 HStack(spacing: 16) {
-                    // Glowing icon circle
                     ZStack {
-                        Circle()
-                            .fill(gold.opacity(0.08))
-                            .frame(width: 44, height: 44)
-
+                        Circle().fill(gold.opacity(0.08)).frame(width: 44, height: 44)
                         Image(systemName: b.icon)
                             .font(.system(size: 17, weight: .medium))
                             .foregroundColor(gold)
@@ -343,7 +286,6 @@ struct MembershipSplashView: View {
                         Text(b.title)
                             .font(.system(size: 15, weight: .bold))
                             .foregroundColor(.white)
-
                         Text(b.sub)
                             .font(.system(size: 12))
                             .foregroundColor(.white.opacity(0.4))
@@ -351,18 +293,14 @@ struct MembershipSplashView: View {
 
                     Spacer()
 
-                    // Animated check
                     Image(systemName: "checkmark")
                         .font(.system(size: 12, weight: .bold))
                         .foregroundColor(bgDark)
                         .frame(width: 24, height: 24)
-                        .background(
-                            Circle().fill(gold)
-                        )
+                        .background(Circle().fill(gold))
                         .scaleEffect(benefitsRevealed ? 1 : 0)
                         .animation(
-                            .spring(response: 0.4, dampingFraction: 0.5)
-                                .delay(Double(index) * 0.12 + 0.6),
+                            .spring(response: 0.4, dampingFraction: 0.5).delay(Double(index) * 0.12 + 0.6),
                             value: benefitsRevealed
                         )
                 }
@@ -371,16 +309,12 @@ struct MembershipSplashView: View {
                 .opacity(benefitsRevealed ? 1 : 0)
                 .offset(x: benefitsRevealed ? 0 : -40)
                 .animation(
-                    .spring(response: 0.55, dampingFraction: 0.8)
-                        .delay(Double(index) * 0.1 + 0.4),
+                    .spring(response: 0.55, dampingFraction: 0.8).delay(Double(index) * 0.1 + 0.4),
                     value: benefitsRevealed
                 )
 
                 if index < benefits.count - 1 {
-                    Rectangle()
-                        .fill(.white.opacity(0.04))
-                        .frame(height: 1)
-                        .padding(.horizontal, 22)
+                    Rectangle().fill(.white.opacity(0.04)).frame(height: 1).padding(.horizontal, 22)
                 }
             }
         }
@@ -411,7 +345,6 @@ struct MembershipSplashView: View {
             }
             .padding(.horizontal, 20)
 
-            // Summary
             Text(selectedPlan == .monthly ? "₹499 billed monthly"
                  : selectedPlan == .halfYearly ? "₹2,499 billed every 6 months"
                  : "₹3,999 billed annually — best deal")
@@ -435,7 +368,6 @@ struct MembershipSplashView: View {
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
         } label: {
             VStack(spacing: 8) {
-                // Recommended badge
                 if plan.recommended {
                     Text("BEST VALUE")
                         .font(.system(size: 8, weight: .heavy))
@@ -444,10 +376,7 @@ struct MembershipSplashView: View {
                         .padding(.horizontal, 10)
                         .padding(.vertical, 3)
                         .background(
-                            Capsule()
-                                .fill(
-                                    LinearGradient(colors: [gold, goldLight], startPoint: .leading, endPoint: .trailing)
-                                )
+                            Capsule().fill(LinearGradient(colors: [gold, goldLight], startPoint: .leading, endPoint: .trailing))
                         )
                 } else if let save = plan.saveBadge {
                     Text(save)
@@ -455,15 +384,11 @@ struct MembershipSplashView: View {
                         .foregroundColor(gold)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 3)
-                        .background(
-                            Capsule()
-                                .stroke(gold.opacity(0.4), lineWidth: 1)
-                        )
+                        .background(Capsule().stroke(gold.opacity(0.4), lineWidth: 1))
                 } else {
                     Spacer().frame(height: 18)
                 }
 
-                // Duration
                 Text(plan.duration)
                     .font(.system(size: 32, weight: .bold, design: .rounded))
                     .foregroundColor(isSelected ? gold : .white.opacity(0.7))
@@ -472,20 +397,17 @@ struct MembershipSplashView: View {
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundColor(isSelected ? .white : .white.opacity(0.4))
 
-                // Per month
                 Text(plan.perMonth)
                     .font(.system(size: 11, weight: .medium))
                     .foregroundColor(.white.opacity(0.3))
                     .padding(.top, 2)
 
-                // Divider line
                 Rectangle()
                     .fill(isSelected ? gold.opacity(0.3) : .white.opacity(0.05))
                     .frame(height: 1)
                     .padding(.horizontal, 16)
                     .padding(.vertical, 4)
 
-                // Price
                 Text(plan.price)
                     .font(.system(size: 18, weight: .bold, design: .rounded))
                     .foregroundColor(isSelected ? .white : .white.opacity(0.5))
@@ -515,17 +437,15 @@ struct MembershipSplashView: View {
     private var ctaButton: some View {
         Button {
             UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-            // Handle subscription
+            onSubscribe()
         } label: {
             ZStack {
-                // Glow behind
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
                     .fill(gold.opacity(0.25))
                     .blur(radius: 12)
                     .frame(height: 56)
                     .offset(y: 4)
 
-                // Button
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
                     .fill(
                         LinearGradient(
@@ -536,7 +456,6 @@ struct MembershipSplashView: View {
                     )
                     .frame(height: 56)
 
-                // Shimmer sweep on button
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
                     .fill(
                         LinearGradient(
@@ -582,46 +501,22 @@ struct MembershipSplashView: View {
 
     // MARK: - Animations
     private func runAnimations() {
-        // Phase 1: Card entrance
         withAnimation { appeared = true }
         withAnimation { benefitsRevealed = true }
         withAnimation { plansRevealed = true }
         withAnimation { ctaRevealed = true }
-
-        // Particles float
         withAnimation { particlesActive = true }
 
-        // Card subtle rotation oscillation
-        withAnimation(
-            .easeInOut(duration: 4)
-            .repeatForever(autoreverses: true)
-        ) {
+        withAnimation(.easeInOut(duration: 4).repeatForever(autoreverses: true)) {
             cardRotation = 6
         }
-
-        // Card float
-        withAnimation(
-            .easeInOut(duration: 3)
-            .repeatForever(autoreverses: true)
-            .delay(0.5)
-        ) {
+        withAnimation(.easeInOut(duration: 3).repeatForever(autoreverses: true).delay(0.5)) {
             cardFloat = -8
         }
-
-        // Shimmer loop on card + CTA
-        withAnimation(
-            .linear(duration: 3)
-            .repeatForever(autoreverses: false)
-            .delay(0.8)
-        ) {
+        withAnimation(.linear(duration: 3).repeatForever(autoreverses: false).delay(0.8)) {
             shimmerPhase = 2
         }
-
-        // Glow pulse
-        withAnimation(
-            .easeInOut(duration: 2.5)
-            .repeatForever(autoreverses: true)
-        ) {
+        withAnimation(.easeInOut(duration: 2.5).repeatForever(autoreverses: true)) {
             glowPulse = 0.8
         }
     }
@@ -629,5 +524,5 @@ struct MembershipSplashView: View {
 
 // MARK: - Preview
 #Preview {
-    MembershipSplashView()
+    MembershipSplashView(onSubscribe: {})
 }

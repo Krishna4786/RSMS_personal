@@ -19,10 +19,14 @@ struct SideMenuItem: Identifiable {
 // MARK: - Membership View
 struct MembershipView: View {
 
+    // Animation states
     @State private var cardAppeared = false
     @State private var menuAppeared = false
     @State private var transactionsAppeared = false
     @State private var shimmerOffset: CGFloat = -200
+
+    // Splash is shown by default — no flash of dashboard
+    @State private var showingSplash = true
 
     private let sideMenuItems: [SideMenuItem] = [
         SideMenuItem(icon: "star.fill", label: "My Points"),
@@ -38,14 +42,42 @@ struct MembershipView: View {
     ]
 
     var body: some View {
+        ZStack {
+            // Layer 1: Dashboard (always exists, animates after splash leaves)
+            dashboardContent
+
+            // Layer 2: Splash on top (visible by default)
+            if showingSplash {
+                MembershipSplashView(onSubscribe: {
+                    // Dismiss splash with animation
+                    withAnimation(.easeInOut(duration: 0.45)) {
+                        showingSplash = false
+                    }
+
+                    // Trigger dashboard animations after splash fades out
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        triggerAnimations()
+                    }
+                })
+                .transition(.opacity)
+                .zIndex(1)
+            }
+        }
+        .onDisappear {
+            // Reset everything so splash shows again next visit
+            showingSplash = true
+            resetAnimations()
+        }
+    }
+
+    // MARK: - Dashboard Content
+    private var dashboardContent: some View {
         NavigationStack {
             ScrollView(.vertical, showsIndicators: false) {
                 VStack(spacing: 0) {
-                    // MARK: - Card + Side Menu Section
                     cardSection
                         .padding(.top, 20)
 
-                    // MARK: - Recent Transactions
                     transactionsSection
                         .padding(.top, 24)
                         .padding(.bottom, 40)
@@ -61,7 +93,36 @@ struct MembershipView: View {
                     }
                 }
             }
-            .onAppear { triggerAnimations() }
+        }
+    }
+
+    // MARK: - Reset Animations
+    private func resetAnimations() {
+        cardAppeared = false
+        menuAppeared = false
+        transactionsAppeared = false
+        shimmerOffset = -200
+    }
+
+    // MARK: - Trigger Animations
+    private func triggerAnimations() {
+        withAnimation(.spring(response: 0.7, dampingFraction: 0.7)) {
+            cardAppeared = true
+        }
+        withAnimation(.spring(response: 0.6, dampingFraction: 0.7)) {
+            menuAppeared = true
+        }
+        withAnimation(.spring(response: 0.5, dampingFraction: 0.75)) {
+            transactionsAppeared = true
+        }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+            withAnimation(
+                .easeInOut(duration: 2.5)
+                .repeatForever(autoreverses: false)
+            ) {
+                shimmerOffset = 250
+            }
         }
     }
 
@@ -69,7 +130,6 @@ struct MembershipView: View {
     private var cardSection: some View {
         VStack(spacing: 0) {
             HStack(alignment: .center, spacing: 0) {
-                // Left Side Menu
                 VStack(spacing: 20) {
                     ForEach(Array(sideMenuItems.enumerated()), id: \.element.id) { index, item in
                         sideMenuButton(item: item, index: index)
@@ -79,7 +139,6 @@ struct MembershipView: View {
 
                 Spacer(minLength: 10)
 
-                // Card Stack
                 cardStack
                     .padding(.trailing, 20)
             }
@@ -90,7 +149,6 @@ struct MembershipView: View {
             )
             .padding(.horizontal, 16)
 
-            // Valid Till
             HStack {
                 Spacer()
                 Text("Valid Till Dec 2026")
@@ -102,10 +160,8 @@ struct MembershipView: View {
         }
     }
 
-    // MARK: - Side Menu Button
     private func sideMenuButton(item: SideMenuItem, index: Int) -> some View {
         Button {
-            // Handle tap
         } label: {
             VStack(spacing: 6) {
                 ZStack {
@@ -136,24 +192,20 @@ struct MembershipView: View {
         )
     }
 
-    // MARK: - Card Stack
     private var cardStack: some View {
         ZStack {
-            // Back card (tilted left)
             memberCard(opacity: 0.35)
                 .rotationEffect(.degrees(cardAppeared ? -8 : 0), anchor: .bottom)
                 .scaleEffect(cardAppeared ? 0.92 : 0.95)
                 .offset(x: cardAppeared ? -14 : 0, y: cardAppeared ? 6 : 0)
                 .animation(.spring(response: 0.8, dampingFraction: 0.65).delay(0.5), value: cardAppeared)
 
-            // Middle card (tilted right)
             memberCard(opacity: 0.6)
                 .rotationEffect(.degrees(cardAppeared ? 5 : 0), anchor: .bottom)
                 .scaleEffect(cardAppeared ? 0.96 : 0.98)
                 .offset(x: cardAppeared ? 8 : 0, y: cardAppeared ? 3 : 0)
                 .animation(.spring(response: 0.8, dampingFraction: 0.65).delay(0.35), value: cardAppeared)
 
-            // Front card (main)
             mainCard
                 .scaleEffect(cardAppeared ? 1.0 : 0.85)
                 .opacity(cardAppeared ? 1.0 : 0)
@@ -162,7 +214,6 @@ struct MembershipView: View {
         .frame(width: 220, height: 300)
     }
 
-    // MARK: - Background Card (faded)
     private func memberCard(opacity: CGFloat) -> some View {
         RoundedRectangle(cornerRadius: 20, style: .continuous)
             .fill(
@@ -178,10 +229,8 @@ struct MembershipView: View {
             .frame(width: 200, height: 280)
     }
 
-    // MARK: - Main Card
     private var mainCard: some View {
         ZStack {
-            // Card background gradient
             RoundedRectangle(cornerRadius: 20, style: .continuous)
                 .fill(
                     LinearGradient(
@@ -195,55 +244,38 @@ struct MembershipView: View {
                     )
                 )
 
-            // Shimmer overlay
             RoundedRectangle(cornerRadius: 20, style: .continuous)
                 .fill(
                     LinearGradient(
-                        colors: [
-                            .white.opacity(0.0),
-                            .white.opacity(0.08),
-                            .white.opacity(0.0),
-                        ],
+                        colors: [.white.opacity(0.0), .white.opacity(0.08), .white.opacity(0.0)],
                         startPoint: .leading,
                         endPoint: .trailing
                     )
                 )
                 .offset(x: shimmerOffset)
-                .mask(
-                    RoundedRectangle(cornerRadius: 20, style: .continuous)
-                )
+                .mask(RoundedRectangle(cornerRadius: 20, style: .continuous))
 
-            // Card content
             VStack(alignment: .leading, spacing: 0) {
-                // Top: Member + Active badge
                 HStack {
                     Text("Member")
                         .font(.system(size: 16, weight: .bold))
                         .foregroundColor(.white)
-
                     Spacer()
-
                     Text("Active")
                         .font(.system(size: 11, weight: .bold))
                         .foregroundColor(.white)
                         .padding(.horizontal, 12)
                         .padding(.vertical, 5)
-                        .background(
-                            Capsule()
-                                .fill(Color(red: 0.22, green: 0.78, blue: 0.42))
-                        )
+                        .background(Capsule().fill(Color(red: 0.22, green: 0.78, blue: 0.42)))
                 }
                 .padding(.bottom, 20)
 
                 Spacer()
 
-                // Center: Brand logo
                 VStack(spacing: 6) {
-                    // Interlocking C's approximation
                     Image(systemName: "infinity")
                         .font(.system(size: 38, weight: .thin))
                         .foregroundColor(.white.opacity(0.7))
-
                     Text("CHANEL")
                         .font(.system(size: 16, weight: .semibold))
                         .tracking(4)
@@ -253,12 +285,9 @@ struct MembershipView: View {
 
                 Spacer()
 
-                // Bottom: Member name
                 Text("Krishna Aggarwal")
                     .font(.system(size: 18, weight: .bold))
                     .foregroundColor(.white)
-
-                // Member ID
                 Text("ID: MBR-2026-0451")
                     .font(.system(size: 11, weight: .medium))
                     .foregroundColor(.white.opacity(0.5))
@@ -277,12 +306,8 @@ struct MembershipView: View {
                 Text("Recent Transactions")
                     .font(.system(size: 18, weight: .bold))
                     .foregroundColor(.black)
-
                 Spacer()
-
-                Button {
-                    // See all
-                } label: {
+                Button { } label: {
                     Text("See All")
                         .font(.system(size: 13, weight: .semibold))
                         .foregroundColor(Color(white: 0.45))
@@ -293,10 +318,8 @@ struct MembershipView: View {
             VStack(spacing: 0) {
                 ForEach(Array(transactions.enumerated()), id: \.element.id) { index, transaction in
                     transactionRow(transaction: transaction, index: index)
-
                     if index < transactions.count - 1 {
-                        Divider()
-                            .padding(.horizontal, 20)
+                        Divider().padding(.horizontal, 20)
                     }
                 }
             }
@@ -309,10 +332,8 @@ struct MembershipView: View {
         }
     }
 
-    // MARK: - Transaction Row
     private func transactionRow(transaction: Transaction, index: Int) -> some View {
         HStack(spacing: 14) {
-            // Product thumbnail
             RoundedRectangle(cornerRadius: 12, style: .continuous)
                 .fill(Color(red: 0.93, green: 0.93, blue: 0.94))
                 .frame(width: 48, height: 48)
@@ -333,7 +354,6 @@ struct MembershipView: View {
 
             Spacer()
 
-            // Points
             Text("+ \(transaction.points) points")
                 .font(.system(size: 14, weight: .bold))
                 .foregroundColor(Color(red: 0.20, green: 0.75, blue: 0.40))
@@ -348,33 +368,12 @@ struct MembershipView: View {
         )
     }
 
-    // MARK: - Helpers
     private func productIcon(for category: String) -> String {
         switch category.lowercased() {
-        case "shoes":       return "shoe.fill"
-        case "apparel":     return "tshirt.fill"
+        case "shoes": return "shoe.fill"
+        case "apparel": return "tshirt.fill"
         case "accessories": return "scarf.fill"
-        default:            return "bag.fill"
-        }
-    }
-
-    private func triggerAnimations() {
-        // Stagger the animations
-        withAnimation { cardAppeared = true }
-        withAnimation { menuAppeared = true }
-        withAnimation { transactionsAppeared = true }
-
-        // Continuous shimmer loop
-        startShimmer()
-    }
-
-    private func startShimmer() {
-        withAnimation(
-            .easeInOut(duration: 2.5)
-            .repeatForever(autoreverses: false)
-            .delay(1.0)
-        ) {
-            shimmerOffset = 250
+        default: return "bag.fill"
         }
     }
 }
